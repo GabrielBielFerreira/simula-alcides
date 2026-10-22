@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/*
+ * Identidade visual do Simula Alcides, extraída das logos da Rede de
+ * Cursinhos Populares Alcides Nascimento. Detalhes e regras de contraste
+ * em docs/identidade-visual.md.
+ */
+:root {
+  --background: #fffbf2; /* off-white: tela de prova e leitura longa */
+  --foreground: #45220a; /* marrom café: texto principal (12,6:1 sobre creme) */
+  --surface: #fbf1d6; /* creme: seções e cartões */
+  --muted: #6b4a33;
+  --line: #e6d6b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+
+  /* Marca */
+  --color-laranja: #e84e1b; /* destaques e texto grande; não usar em texto pequeno */
+  --color-laranja-acao: #b93a0f; /* botões e links (5,7:1 com branco) */
+  --color-rosa: #c2274b; /* secundária: redação, conquistas */
+  --color-vinho: #7a0021; /* cabeçalhos escuros, rodapé, área admin */
+  --color-mostarda: #eaa842;
+  --color-amarelo: #f8c23a;
+  --color-grafite: #2b302b;
+
+  /* Áreas do ENEM: sempre acompanhadas de ícone e nome */
+  --color-area-lc: #c2274b;
+  --color-area-ch: #eaa842;
+  --color-area-cn: #2b302b;
+  --color-area-mt: #e84e1b;
+
+  /* Resultado: neutros, fora da paleta da marca */
+  --color-acerto: #1f7a3d;
+  --color-erro: #b42318;
+  --color-branco: #6b7280;
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-fraunces);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+}
