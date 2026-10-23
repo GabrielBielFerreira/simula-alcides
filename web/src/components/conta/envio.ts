@@ -35,6 +35,8 @@ export function useEnvioSimulado<Acao extends string>() {
 export function mensagemDeErro(erro: unknown) {
   const msg = erro instanceof Error ? erro.message : String(erro);
   if (/invalid login credentials/i.test(msg)) return "E-mail ou senha incorretos.";
+  if (/provider is not enabled|unsupported provider/i.test(msg))
+    return "O login com Google ainda não está disponível. Use e-mail e senha.";
   if (/already registered|already been registered/i.test(msg))
     return "Este e-mail já tem conta. Use “Entrar”.";
   if (/email not confirmed/i.test(msg)) return "Confirme seu e-mail pelo link que enviamos.";
