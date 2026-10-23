@@ -1,0 +1,1155 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Simula Alcides — design system.
+ * Paleta oficial da Rede de Cursinhos Populares Alcides Nascimento.
+ */
+
+@theme inline {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  /* Marca */
+  --color-laranja: var(--laranja);
+  --color-laranja-acao: var(--laranja-acao);
+  --color-rosa: var(--rosa);
+  --color-vinho: var(--vinho);
+  --color-mostarda: var(--mostarda);
+  --color-amarelo: var(--amarelo);
+  --color-marrom: var(--marrom);
+  --color-grafite: var(--grafite);
+  --color-creme: var(--creme);
+  --color-offwhite: var(--offwhite);
+  --color-linha: var(--linha);
+  --color-cremetexto: var(--creme);
+
+  /* Resultado (neutras, fora da marca) */
+  --color-acerto: var(--acerto);
+  --color-erro: var(--erro);
+  --color-branco-q: var(--branco-q);
+  --color-branco-q-texto: var(--branco-q-texto);
+  --color-borda-controle: var(--borda-controle);
+  --color-externos: var(--externos);
+
+  /* Áreas do ENEM */
+  --color-area-linguagens: var(--rosa);
+  --color-area-humanas: var(--mostarda);
+  --color-area-natureza: var(--area-natureza);
+  --color-area-matematica: var(--laranja);
+
+  /* shadcn */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-suave: 0 1px 2px rgb(69 34 10 / 0.05), 0 4px 16px -8px rgb(69 34 10 / 0.12);
+  --shadow-cartao: 0 2px 0 var(--marrom);
+
+  /* Movimento: `ease-saida`, `ease-entra-sai`; `transition-*` sem duração usa 140ms e a curva de saída. */
+  --ease-saida: var(--curva-saida);
+  --ease-entra-sai: var(--curva-entra-sai);
+  --default-transition-duration: var(--mov-micro);
+  --default-transition-timing-function: var(--curva-saida);
+}
+
+:root {
+  --radius: 0.875rem;
+
+  --laranja: #e84e1b;
+  --laranja-acao: #b93a0f;
+  --rosa: #c2274b;
+  --vinho: #7a0021;
+  --mostarda: #eaa842;
+  --amarelo: #f8c23a;
+  --marrom: #45220a;
+  --grafite: #2b302b;
+  --area-natureza: var(--grafite);
+  --creme: #fbf1d6;
+  --offwhite: #fffbf2;
+  --linha: #e6d6b8;
+  --muted-text: #6b4a33;
+
+  --acerto: #1f7a3d;
+  --erro: #b42318;
+  --branco-q: #6b7280;
+  --branco-q-texto: #4b5563;
+  --borda-controle: #94755a;
+  --externos: #b0546a;
+
+  --background: var(--offwhite);
+  --foreground: var(--marrom);
+  --card: #ffffff;
+  --card-foreground: var(--marrom);
+  --popover: #ffffff;
+  --popover-foreground: var(--marrom);
+  --primary: var(--laranja-acao);
+  --primary-foreground: #ffffff;
+  --secondary: var(--amarelo);
+  --secondary-foreground: var(--vinho);
+  --muted: var(--creme);
+  --muted-foreground: var(--muted-text);
+  --accent: var(--creme);
+  --accent-foreground: var(--marrom);
+  --destructive: var(--erro);
+  --destructive-foreground: #ffffff;
+  --border: var(--linha);
+  --input: var(--linha);
+  --ring: var(--laranja-acao);
+
+  --sidebar: var(--vinho);
+  --sidebar-foreground: var(--creme);
+  --sidebar-primary: var(--amarelo);
+  --sidebar-primary-foreground: var(--vinho);
+  --sidebar-accent: #8f1534;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #94304a;
+  --sidebar-ring: var(--amarelo);
+
+  /* Movimento (veja src/components/ds/movimento.tsx). Saídas mais rápidas que entradas. */
+  --mov-micro: 140ms; /* toque, foco, troca de cor */
+  --mov-curta: 220ms; /* aparecer, menus, passo/questão, troca de rota */
+  --mov-media: 360ms; /* revelar conteúdo, barras, números, painel lateral */
+  --mov-longa: 600ms; /* só herói e celebração */
+  --mov-passo: 50ms; /* escalonamento entre itens */
+  --mov-passo-max: 400ms; /* escalonamento total máximo */
+  --curva-saida: cubic-bezier(0.22, 1, 0.36, 1); /* desacelera: entradas e respostas */
+  --curva-entra-sai: cubic-bezier(0.65, 0, 0.35, 1); /* saídas e mudanças de lugar */
+
+  --gradiente-hero: linear-gradient(
+    140deg,
+    var(--vinho) 0%,
+    #a3122f 35%,
+    var(--laranja) 72%,
+    var(--amarelo) 120%
+  );
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: 0;
+    line-height: 1.1;
+  }
+  :focus-visible {
+    outline: 3px solid var(--laranja-acao);
+    outline-offset: 2px;
+    border-radius: 6px;
+    /* O anel aparece já no lugar, sem animar: a cada Tab, nada "respira". */
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+}
+
+@utility bg-hero {
+  background-image: var(--gradiente-hero);
+}
+
+/* Padrão discreto de casario do Recife */
+@utility casario {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Cpath d='M0 40V24h10v-8l6-5 6 5v8h8V14h12v26M42 40V20l8-7 8 7v20M58 40V26h14v-6h10v20M82 40V18l7-6 7 6v22M96 40V28h12v-9h12v21' fill='none' stroke='%2345220A' stroke-opacity='.09' stroke-width='1.4'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom;
+}
+
+/* Usa as variáveis de base (não as --color-*) para seguir o modo escuro da prova. */
+@utility cartao {
+  background-color: var(--card);
+  border: 1.5px solid var(--linha);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-suave);
+}
+
+@utility container-site {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  @media (width >= 768px) {
+    padding-inline: 2rem;
+  }
+}
+
+/* ==========================================================================
+ * Movimento. Vocabulário e regras em src/components/ds/movimento.tsx.
+ * Só transform e opacity (e stroke-dashoffset em SVG pequeno).
+ * ========================================================================== */
+
+/* Posição no escalonamento (0 a 8). Herda: o que está dentro de um item escalonado
+   (número, barra) entra junto com ele. */
+@property --i {
+  syntax: "<integer>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes encher {
+  from {
+    transform: scaleX(0);
+  }
+}
+/* Barras: o preenchimento desliza da esquerda (mantém a ponta arredondada, que o scaleX achataria). */
+@keyframes encher-barra {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@keyframes desenhar {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes da-direita {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes da-esquerda {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+@keyframes pop-check {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes brilho {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes vt-sair {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Entradas que tocam ao montar o elemento. Atraso = --atraso + --i × 50ms (máx. 400ms).
+   Duração pode ser trocada com `duracao-*` (ou --duracao). */
+@utility anima-subir {
+  animation: subir var(--duracao, var(--mov-longa)) var(--curva-saida) both;
+  animation-delay: calc(
+    var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max))
+  );
+}
+@utility anima-aparecer {
+  animation: aparecer var(--duracao, var(--mov-curta)) var(--curva-saida) both;
+  animation-delay: calc(
+    var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max))
+  );
+}
+@utility anima-surgir {
+  animation: surgir var(--duracao, var(--mov-curta)) var(--curva-saida) both;
+  animation-delay: calc(
+    var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max))
+  );
+}
+@utility anima-encher {
+  transform-origin: left center;
+  animation: encher var(--duracao, var(--mov-media)) var(--curva-saida) both;
+  animation-delay: calc(
+    var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max))
+  );
+}
+/* Para <path|line|circle pathLength="1">. */
+@utility anima-desenhar {
+  stroke-dasharray: 1;
+  animation: desenhar var(--duracao, var(--mov-media)) var(--curva-saida) both;
+  animation-delay: calc(
+    var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max))
+  );
+}
+/* Avançar (próximo passo/questão) entra pela direita; voltar entra pela esquerda. */
+@utility anima-da-direita {
+  animation: da-direita var(--duracao, var(--mov-curta)) var(--curva-saida) both;
+}
+@utility anima-da-esquerda {
+  animation: da-esquerda var(--duracao, var(--mov-curta)) var(--curva-saida) both;
+}
+/* Círculo com Check ou letra que acabou de ser marcado. */
+@utility anima-pop {
+  animation: pop-check var(--duracao, var(--mov-curta)) var(--curva-saida) both;
+}
+
+@utility duracao-micro {
+  --duracao: var(--mov-micro);
+}
+@utility duracao-curta {
+  --duracao: var(--mov-curta);
+}
+@utility duracao-media {
+  --duracao: var(--mov-media);
+}
+@utility duracao-longa {
+  --duracao: var(--mov-longa);
+}
+
+/* Dá --i = 0, 1, 2… aos filhos diretos (do 9º em diante, 8 = 400ms). */
+@utility escalonar-filhos {
+  & > :nth-child(2) {
+    --i: 1;
+  }
+  & > :nth-child(3) {
+    --i: 2;
+  }
+  & > :nth-child(4) {
+    --i: 3;
+  }
+  & > :nth-child(5) {
+    --i: 4;
+  }
+  & > :nth-child(6) {
+    --i: 5;
+  }
+  & > :nth-child(7) {
+    --i: 6;
+  }
+  & > :nth-child(8) {
+    --i: 7;
+  }
+  & > :nth-child(n + 9) {
+    --i: 8;
+  }
+}
+
+/* Troca de borda/fundo/cor de um item que pode ficar `selecionado`, nos dois sentidos. */
+@utility selecionavel {
+  transition-property: color, background-color, border-color, opacity, scale, transform;
+  transition-duration: var(--mov-micro);
+  transition-timing-function: var(--curva-saida);
+}
+
+/* Cartão clicável: sobe 2px e ganha sombra no hover (só onde há mouse) e afunda de leve no toque.
+   A sombra mora num pseudo-elemento: anima-se só a opacidade dele, nunca o box-shadow. */
+@utility cartao-interativo {
+  position: relative;
+  isolation: isolate;
+  transition: transform var(--mov-curta) var(--curva-saida);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    box-shadow: 0 14px 28px -14px rgb(69 34 10 / 0.3);
+    opacity: 0;
+    transition: opacity var(--mov-curta) var(--curva-saida);
+    pointer-events: none;
+  }
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-2px);
+    }
+    &:hover::after {
+      opacity: 1;
+    }
+  }
+  &:focus-visible::after,
+  &:focus-within::after {
+    opacity: 1;
+  }
+  &:active {
+    transform: scale(0.99);
+    transition-duration: var(--mov-micro);
+  }
+}
+
+/* Esqueleto de carregamento: brilho suave atravessando (laço lento; para com movimento reduzido). */
+@utility esqueleto {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--card) 65%, transparent),
+      transparent
+    );
+    animation: brilho 1.6s var(--curva-entra-sai) infinite;
+  }
+}
+
+@layer components {
+  /* Revelar (componente `Revelar` e hook `useRevelar`). Estados em data-revelar:
+     (nenhum) a entrada toca já no 1º desenho, sem JS · espera: fora da tela, aguardando ·
+     entrando: entrou na tela · visto: terminou, sem animação (filhos novos não animam). */
+  .revelar {
+    --revelar-efeito: subir;
+  }
+  .revelar[data-efeito="aparecer"] {
+    --revelar-efeito: aparecer;
+  }
+  .revelar[data-efeito="surgir"] {
+    --revelar-efeito: surgir;
+  }
+  .revelar:not(.revelar-filhos):not([data-revelar="espera"], [data-revelar="visto"]),
+  .revelar-filhos:not([data-revelar="espera"], [data-revelar="visto"]) > * {
+    animation: var(--revelar-efeito) var(--duracao, var(--mov-media)) var(--curva-saida) both;
+    animation-delay: calc(
+      var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max))
+    );
+  }
+  .revelar:not(.revelar-filhos)[data-revelar="espera"],
+  .revelar-filhos[data-revelar="espera"] > * {
+    opacity: 0;
+  }
+  /* Se o teclado chegar antes da rolagem, o conteúdo aparece. */
+  .revelar[data-revelar="espera"]:focus-within,
+  .revelar-filhos[data-revelar="espera"] > :focus-within {
+    opacity: 1;
+  }
+
+  /* Preenchimento de barra: --progresso de 0 a 1. Entra deslizando da esquerda e, quando o
+     valor muda, desliza até o novo valor (transform, nunca width). */
+  .barra-cheia {
+    width: 100%;
+    height: 100%;
+    transform: translateX(calc((var(--progresso, 1) - 1) * 100%));
+    transition: transform var(--duracao, var(--mov-media)) var(--curva-saida);
+  }
+  .barra-cheia:not([data-revelar="espera"], [data-revelar="visto"]) {
+    animation: encher-barra var(--duracao, var(--mov-media)) var(--curva-saida) both;
+    animation-delay: calc(
+      var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max))
+    );
+    transition: none;
+  }
+  .barra-cheia[data-revelar="espera"] {
+    transform: translateX(-100%);
+    transition: none;
+  }
+
+  /* SVG que se desenha (componente `DesenhoSvg`): traços com pathLength="1" e classe `traco`. */
+  .desenho-svg .traco {
+    stroke-dasharray: 1;
+  }
+  .desenho-svg:not([data-revelar="espera"], [data-revelar="visto"]) .traco {
+    animation: desenhar var(--duracao, var(--mov-media)) var(--curva-saida) both;
+    animation-delay: calc(
+      var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max))
+    );
+  }
+  .desenho-svg[data-revelar="espera"] .traco {
+    stroke-dashoffset: 1;
+  }
+}
+
+/* Troca de rota (View Transitions): só o conteúdo troca, num fade em sequência (fade-through):
+   a tela velha some rápido (90ms) e só então a nova aparece, sem um texto por cima do outro.
+   Só opacidade: quem sobe é a entrada da própria página (Revelar, anima-subir), uma vez só.
+   As navegações fixas têm nome próprio e ficam paradas; se existem só de um lado
+   (ex.: /app ↔ /admin), aparecem ou somem com um fade. */
+::view-transition-old(root) {
+  animation: vt-sair 90ms var(--curva-entra-sai) both;
+}
+::view-transition-new(root) {
+  animation: aparecer var(--mov-curta) var(--curva-saida) 70ms both;
+}
+::view-transition-group(nav-app-lateral),
+::view-transition-group(nav-app-topo),
+::view-transition-group(nav-app-inferior),
+::view-transition-group(nav-admin-lateral),
+::view-transition-group(nav-admin-topo),
+::view-transition-old(nav-app-lateral),
+::view-transition-old(nav-app-topo),
+::view-transition-old(nav-app-inferior),
+::view-transition-old(nav-admin-lateral),
+::view-transition-old(nav-admin-topo),
+::view-transition-new(nav-app-lateral),
+::view-transition-new(nav-app-topo),
+::view-transition-new(nav-app-inferior),
+::view-transition-new(nav-admin-lateral),
+::view-transition-new(nav-admin-topo) {
+  animation: none;
+}
+::view-transition-old(nav-app-lateral):only-child,
+::view-transition-old(nav-app-topo):only-child,
+::view-transition-old(nav-app-inferior):only-child,
+::view-transition-old(nav-admin-lateral):only-child,
+::view-transition-old(nav-admin-topo):only-child {
+  animation: vt-sair var(--mov-micro) var(--curva-entra-sai) both;
+}
+::view-transition-new(nav-app-lateral):only-child,
+::view-transition-new(nav-app-topo):only-child,
+::view-transition-new(nav-app-inferior):only-child,
+::view-transition-new(nav-admin-lateral):only-child,
+::view-transition-new(nav-admin-topo):only-child {
+  animation: aparecer var(--mov-curta) var(--curva-saida) both;
+}
+
+/* Movimento reduzido: nada se desloca, nada conta, nada pulsa. Animações e transições vão
+   direto ao estado final (assim estados finais e eventos de fim continuam valendo). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  /* Entradas não tocam nem por 0,01ms: com a regra acima, o 1º quadro ainda pintaria o estado
+     inicial (questão ou passo transparente, check em branco) e a tela piscaria a cada troca.
+     Assim o elemento já nasce no estado final. O que tem base invisível (anel-celebracao)
+     continua invisível. */
+  :is(
+    .anima-subir,
+    .anima-aparecer,
+    .anima-surgir,
+    .anima-pop,
+    .anima-encher,
+    .anima-desenhar,
+    .anima-da-direita,
+    .anima-da-esquerda,
+    .questao-da-direita,
+    .questao-da-esquerda,
+    .erro-surge,
+    .form-conta p[id$="-erro"],
+    .revelar,
+    .revelar-filhos > *,
+    .barra-cheia,
+    .desenho-svg .traco,
+    .desenho-svg .ponto-pop,
+    .desenho-svg .depois-do-traco,
+    .revelar .surge-depois,
+    .demo-toque,
+    .demo-selecao,
+    .demo-letra,
+    .demo-encher,
+    .demo-avanco,
+    .demo-salvo .traco,
+    .corrigindo-anel,
+    .corrigindo-check,
+    .anel-celebracao,
+    .anel-atual,
+    .faq-resposta
+  ) {
+    animation: none !important;
+  }
+}
+
+/* Na impressão, tudo no estado final. */
+@media print {
+  .revelar,
+  .revelar-filhos > * {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+  .barra-cheia {
+    animation: none !important;
+    transform: translateX(calc((var(--progresso, 1) - 1) * 100%)) !important;
+  }
+}
+
+@utility casario-claro {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Cpath d='M0 40V24h10v-8l6-5 6 5v8h8V14h12v26M42 40V20l8-7 8 7v20M58 40V26h14v-6h10v20M82 40V18l7-6 7 6v22M96 40V28h12v-9h12v21' fill='none' stroke='%23FBF1D6' stroke-opacity='.18' stroke-width='1.4'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom;
+}
+.prova-escura {
+  --background: #2b302b;
+  --offwhite: #2b302b;
+  --card: #353b35;
+  --popover: #353b35;
+  --creme: #3a403a;
+  --muted: #3a403a;
+  --accent: #3a403a;
+  --linha: #59615a;
+  --border: #59615a;
+  --input: #59615a;
+  --borda-controle: #a9a398;
+  --marrom: #fbf1d6;
+  --foreground: #fbf1d6;
+  --card-foreground: #fbf1d6;
+  --popover-foreground: #fbf1d6;
+  --accent-foreground: #fbf1d6;
+  --muted-text: #d9c9a8;
+  --muted-foreground: #d9c9a8;
+  --laranja-acao: #f8c23a;
+  --primary: #f8c23a;
+  --primary-foreground: #2b302b;
+  --ring: #f8c23a;
+  /* Fundo do botão primário ao passar o mouse: claro o bastante para o texto escuro. */
+  --vinho: #eaa842;
+  /* Natureza é grafite: no fundo grafite da prova escura, vira um cinza claro. */
+  --area-natureza: #d4d8d0;
+  /* Mapa, menu "Aa" e confirmações abrem fora do contêiner da prova: reaplica a cor do texto. */
+  color: var(--foreground);
+  color-scheme: dark;
+}
+.selecionado {
+  border: 2px solid var(--laranja-acao);
+  background: color-mix(in srgb, var(--laranja-acao) 8%, transparent);
+  /* Mesma transição do estado selecionado em todo o produto (com `selecionavel` no elemento,
+     ela vale também ao desmarcar). */
+  transition-property: color, background-color, border-color, opacity, scale, transform;
+  transition-duration: var(--mov-micro);
+  transition-timing-function: var(--curva-saida);
+}
+.titulo-pagina {
+  font-size: 28px;
+  font-weight: 900;
+}
+@media (min-width: 1024px) {
+  .titulo-pagina {
+    font-size: 36px;
+  }
+}
+/* Toasts do sonner no ritmo do produto (durante o arrasto o sonner desliga a transição). */
+[data-sonner-toast].toast-marca {
+  transition-duration: var(--mov-media), var(--mov-media), var(--mov-media), var(--mov-curta);
+  transition-timing-function: var(--curva-saida);
+}
+.toast-marca {
+  background: var(--card) !important;
+  color: var(--marrom) !important;
+  border: 1.5px solid var(--linha) !important;
+  border-radius: 14px !important;
+  font-size: 15px !important;
+}
+.leitura-17 {
+  font-size: 17px;
+}
+.leitura-19 {
+  font-size: 19px;
+}
+.leitura-21 {
+  font-size: 21px;
+}
+.leitura-23 {
+  font-size: 23px;
+}
+
+/* movimento: estudante */
+/* Minigráfico do Início: dentro de um `.desenho-svg`, pontos (`ponto-pop`, círculo de SVG) e
+   textos (`depois-do-traco`) entram quando o traço chega até eles, com o atraso em --depois.
+   Em espera ficam invisíveis, como o traço; depois do "visto", ficam parados no lugar. */
+.desenho-svg .ponto-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.desenho-svg:not([data-revelar="espera"], [data-revelar="visto"]) .ponto-pop {
+  animation: pop-check var(--mov-curta) var(--curva-saida) both;
+  animation-delay: calc(
+    var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max)) +
+      var(--depois, 0ms)
+  );
+}
+.desenho-svg:not([data-revelar="espera"], [data-revelar="visto"]) .depois-do-traco {
+  animation: subir var(--mov-media) var(--curva-saida) both;
+  animation-delay: calc(
+    var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max)) +
+      var(--depois, 0ms)
+  );
+}
+.desenho-svg[data-revelar="espera"] :is(.ponto-pop, .depois-do-traco) {
+  opacity: 0;
+}
+
+/* Selo que surge depois do bloco (ex.: "+40 pontos" junto da nota da redação): dentro de um
+   `.revelar`, entra com o próprio bloco, mesmo que ele só apareça ao rolar (atraso em --depois). */
+.revelar:not([data-revelar="espera"], [data-revelar="visto"]) .surge-depois {
+  animation: surgir var(--mov-curta) var(--curva-saida) both;
+  animation-delay: calc(
+    var(--atraso, 0ms) + min(var(--i, 0) * var(--mov-passo), var(--mov-passo-max)) +
+      var(--depois, 0ms)
+  );
+}
+.revelar[data-revelar="espera"] .surge-depois {
+  opacity: 0;
+}
+
+/* movimento: publico-conta */
+
+/* Cabeçalho do site (SiteHeader): ao rolar, ganha a borda e uma sombra leve. Anima-se a cor da
+   borda e a opacidade da sombra (que mora num pseudo-elemento), nunca o box-shadow. */
+@layer components {
+  .cabecalho-site {
+    view-transition-name: nav-site-topo;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--mov-curta) var(--curva-saida);
+  }
+  .cabecalho-site::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    height: 10px;
+    background: linear-gradient(rgb(69 34 10 / 0.08), transparent);
+    opacity: 0;
+    transition: opacity var(--mov-curta) var(--curva-saida);
+    pointer-events: none;
+  }
+  .cabecalho-site[data-rolou] {
+    border-bottom-color: var(--linha);
+  }
+  .cabecalho-site[data-rolou]::after {
+    opacity: 1;
+  }
+}
+
+/* Na troca de rota, o cabeçalho do site e a moldura das telas de conta (painel vinho no
+   desktop, logo no celular) ficam parados; só o conteúdo troca. Se existem só de um lado,
+   aparecem ou somem com um fade. */
+::view-transition-group(nav-site-topo),
+::view-transition-group(conta-painel),
+::view-transition-group(conta-logo),
+::view-transition-old(nav-site-topo),
+::view-transition-old(conta-painel),
+::view-transition-old(conta-logo),
+::view-transition-new(nav-site-topo),
+::view-transition-new(conta-painel),
+::view-transition-new(conta-logo) {
+  animation: none;
+}
+::view-transition-old(nav-site-topo):only-child,
+::view-transition-old(conta-painel):only-child,
+::view-transition-old(conta-logo):only-child {
+  animation: vt-sair var(--mov-micro) var(--curva-entra-sai) both;
+}
+::view-transition-new(nav-site-topo):only-child,
+::view-transition-new(conta-painel):only-child,
+::view-transition-new(conta-logo):only-child {
+  animation: aparecer var(--mov-curta) var(--curva-saida) both;
+}
+
+/* Demonstração no celular da página inicial (PhoneMock). Só CSS, toca uma vez ao carregar
+   (também sem JS): o toque na alternativa, o estado "selecionado" chegando por cima (opacidade),
+   o círculo com a letra, a barra avançando uma questão e o check de "salvo" se desenhando.
+   Se a alternativa está abaixo da tela, o componente põe data-demo="espera" (estado inicial,
+   parado) e troca para "tocando" quando ela aparece, com menos atraso. */
+@keyframes demo-toque {
+  50% {
+    transform: scale(0.97);
+  }
+}
+@keyframes demo-avanco {
+  from {
+    transform: translateX(calc((var(--antes) - 1) * 100%));
+  }
+}
+@layer components {
+  .demo-prova {
+    --demo-inicio: 1150ms;
+  }
+  .demo-prova[data-demo="tocando"] {
+    --demo-inicio: 300ms;
+  }
+  .demo-toque {
+    animation: demo-toque 280ms var(--curva-entra-sai) var(--demo-inicio) both;
+  }
+  .demo-selecao {
+    animation: aparecer var(--mov-micro) var(--curva-saida) calc(var(--demo-inicio) + 140ms) both;
+  }
+  .demo-letra {
+    animation: pop-check var(--mov-curta) var(--curva-saida) calc(var(--demo-inicio) + 140ms) both;
+  }
+  /* A barra enche até a questão atual enquanto o celular sobe… */
+  .demo-encher {
+    animation: encher-barra var(--mov-media) var(--curva-saida) 650ms both;
+  }
+  /* …e avança uma questão depois da resposta. */
+  .demo-avanco {
+    transform: translateX(calc((var(--depois) - 1) * 100%));
+    animation: demo-avanco var(--mov-media) var(--curva-saida) calc(var(--demo-inicio) + 450ms) both;
+  }
+  .demo-salvo .traco {
+    stroke-dasharray: 1;
+    animation: desenhar var(--mov-media) var(--curva-saida) calc(var(--demo-inicio) + 650ms) both;
+  }
+  .demo-prova[data-demo] .demo-encher {
+    animation: none;
+  }
+  .demo-prova[data-demo="espera"] :is(.demo-toque, .demo-selecao, .demo-letra, .demo-avanco),
+  .demo-prova[data-demo="espera"] .demo-salvo .traco {
+    animation: none;
+  }
+  .demo-prova[data-demo="espera"] :is(.demo-selecao, .demo-letra) {
+    opacity: 0;
+  }
+  .demo-prova[data-demo="espera"] .demo-avanco {
+    transform: translateX(calc((var(--antes) - 1) * 100%));
+  }
+  .demo-prova[data-demo="espera"] .demo-salvo .traco {
+    stroke-dashoffset: 1;
+  }
+}
+
+/* Perguntas frequentes (<details class="faq-item">): onde há ::details-content e
+   interpolate-size, a resposta abre suave (e fecha mais rápido). Onde não há, a regra inteira
+   é ignorada e o <details> abre na hora, como antes. A altura anima só aqui: bloco pequeno,
+   por um toque, a pedido do projeto. */
+@layer components {
+  .faq-item {
+    interpolate-size: allow-keywords;
+  }
+  .faq-item::details-content {
+    block-size: 0;
+    overflow-y: clip;
+    transition:
+      block-size var(--mov-micro) var(--curva-entra-sai),
+      content-visibility var(--mov-micro) allow-discrete;
+  }
+  .faq-item[open]::details-content {
+    block-size: auto;
+    transition-duration: var(--mov-curta);
+    transition-timing-function: var(--curva-saida);
+  }
+  .faq-item[open] .faq-resposta {
+    animation: aparecer var(--mov-curta) var(--curva-saida) both;
+  }
+}
+
+/* Mensagens de erro dos formulários de conta: surgem deslizando de leve, com fade, sem tremer.
+   Vale para as mensagens do `Campo` dentro de `.form-conta` e para a classe `erro-surge`.
+   Toca quando a mensagem aparece, não a cada tecla (o elemento continua o mesmo). */
+@keyframes erro-surgir {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@layer components {
+  .erro-surge,
+  .form-conta p[id$="-erro"] {
+    animation: erro-surgir var(--mov-curta) var(--curva-saida) both;
+  }
+  .form-conta input[aria-invalid] {
+    transition: border-color var(--mov-micro) var(--curva-saida);
+  }
+}
+
+/* "Tudo pronto" das boas-vindas: um anel suave se expande uma vez em volta do check e some. */
+@keyframes anel-expandir {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  12% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+@layer components {
+  /* Começa quando o círculo termina de surgir; antes e depois, invisível. */
+  .anel-celebracao {
+    opacity: 0;
+    animation: anel-expandir var(--mov-longa) var(--curva-saida) 220ms both;
+  }
+}
+
+/* movimento: prova */
+/* A prova é o momento de maior concentração: movimento mínimo, rápido e só como resposta a uma
+   ação. Nada aqui toca no carregamento nem a cada segundo do cronômetro. */
+
+/* Trocar de questão: só o corpo da questão desliza 12px com fade, em ~180ms (entre micro e
+   curta: mais leve que um passo de formulário), da direita ao avançar e da esquerda ao voltar. */
+@keyframes questao-entra {
+  from {
+    opacity: 0;
+    transform: translateX(var(--questao-de));
+  }
+}
+@utility questao-da-direita {
+  --questao-de: 12px;
+  animation: questao-entra 180ms var(--curva-saida) both;
+}
+@utility questao-da-esquerda {
+  --questao-de: -12px;
+  animation: questao-entra 180ms var(--curva-saida) both;
+}
+
+@layer components {
+  /* Riscar alternativa: cada palavra (com o espaço seguinte) tem um traço que cresce com scaleX,
+     em sequência (--risco-atraso), e o texto esmaece. Desfazer: o traço some num fade. */
+  .texto-riscavel {
+    transition: color var(--mov-micro) var(--curva-saida);
+  }
+  .texto-riscavel[data-riscado] {
+    color: var(--muted-foreground);
+  }
+  .risco-palavra {
+    position: relative;
+  }
+  .risco-palavra::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background: currentColor;
+    pointer-events: none;
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition:
+      opacity var(--mov-micro) var(--curva-saida),
+      transform 0s linear var(--mov-micro);
+  }
+  .texto-riscavel[data-riscado] .risco-palavra::after {
+    opacity: 1;
+    transform: none;
+    transition:
+      transform var(--mov-micro) var(--curva-saida) var(--risco-atraso, 0ms),
+      opacity 0s linear var(--risco-atraso, 0ms);
+  }
+
+  /* Questão atual no mapa: o anel surge apertando até o lugar (como o anel de foco). */
+  .anel-atual {
+    animation: anel-surgir var(--mov-curta) var(--curva-saida) var(--atraso, 0ms) both;
+  }
+
+  /* Últimos 5 minutos: um anel suave sai do cronômetro UMA vez por minuto e some. */
+  .tempo-pulso {
+    opacity: 0;
+    animation: tempo-pulso 900ms var(--curva-saida) both;
+  }
+
+  /* Depois de entregar: o anel se desenha e o check fecha (até ~850ms; o resultado abre em 1s). */
+  .corrigindo-anel {
+    stroke-dasharray: 1;
+    animation: desenhar var(--mov-longa) var(--curva-entra-sai) 60ms both;
+  }
+  .corrigindo-check {
+    stroke-dasharray: 1;
+    animation: desenhar var(--mov-curta) var(--curva-saida) 620ms both;
+  }
+}
+@keyframes anel-surgir {
+  from {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+}
+@keyframes tempo-pulso {
+  0% {
+    opacity: 0;
+    transform: none;
+  }
+  25% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12, 1.35);
+  }
+}
+
+/* Cor que muda sem toque (cronômetro aos 30 e aos 5 minutos, aviso de "sem conexão"): transição
+   média; o afundar do toque continua em 140ms. Fora de camada para vencer o transition do Button. */
+.cor-suave {
+  transition-property: color, background-color, border-color, scale;
+  transition-duration: var(--mov-media), var(--mov-media), var(--mov-media), var(--mov-micro);
+  transition-timing-function: var(--curva-saida);
+}
+
+/* Modo escuro da prova: um crossfade único da tela inteira (View Transition do tipo
+   troca-de-tema, 140ms, só opacidade, composto na GPU), em vez de transicionar a cor de cada
+   elemento. Sem suporte ou com movimento reduzido, a troca é instantânea (prova.tsx).
+   plus-lighter: o navegador só o aplica na animação padrão; sem ele, no meio da troca as duas
+   imagens ficam a 50% sobre o fundo e a tela "lava" de claro por um quadro. */
+:root:active-view-transition-type(troca-de-tema)::view-transition-old(root) {
+  animation: vt-sair var(--mov-micro) var(--curva-entra-sai) both;
+  mix-blend-mode: plus-lighter;
+}
+:root:active-view-transition-type(troca-de-tema)::view-transition-new(root) {
+  animation: aparecer var(--mov-micro) var(--curva-entra-sai) both;
+  mix-blend-mode: plus-lighter;
+}
+
+/* movimento: coordenacao */
+/* Formulários da coordenação (sheet "Novo simulado"): a mensagem de erro do `Campo` surge
+   deslizando de leve, como a classe `erro-surge`, e a borda do campo troca de cor suave. Toca
+   quando a mensagem aparece, não a cada tecla (o elemento continua o mesmo). */
+@layer components {
+  .form-coordenacao p[id$="-erro"] {
+    animation: erro-surgir var(--mov-curta) var(--curva-saida) both;
+  }
+  .form-coordenacao input[aria-invalid] {
+    transition: border-color var(--mov-micro) var(--curva-saida);
+  }
+
+  /* "Como os estudantes responderam" (painel da questão): a lista inteira segue um só
+     `useRevelar`. À vista quando o painel abre, espera ele deslizar (250ms); revelada pela
+     rolagem, começa na hora. As barras não têm revelar próprio, e o destaque do gabarito
+     (`depois-das-barras`, efeito em --efeito) entra --depois do começo das barras. */
+  .distribuicao {
+    --atraso: 250ms;
+  }
+  .distribuicao[data-revelar="entrando"] {
+    --atraso: 0ms;
+  }
+  .distribuicao[data-revelar="espera"] .barra-cheia {
+    animation: none;
+    transform: translateX(-100%);
+  }
+  .distribuicao:not([data-revelar="espera"], [data-revelar="visto"]) .depois-das-barras {
+    animation: var(--efeito, aparecer) var(--mov-curta) var(--curva-saida) both;
+    animation-delay: calc(var(--atraso) + var(--depois, 0ms));
+  }
+  .distribuicao[data-revelar="espera"] .depois-das-barras {
+    opacity: 0;
+  }
+}
+/* Saída dos sheets e do fundo escuro (menu do celular, painel da questão, "Novo simulado" e os
+   demais): keyframes fixos, sem variáveis, que o navegador roda no compositor. Assim o painel
+   desliza até o fim mesmo com a thread principal ocupada montando a tela nova (menu do celular
+   navegando); os keyframes do tw-animate, com variáveis, congelavam no meio. Mesmo tempo e curva
+   do componente (220ms, entra-sai). Fora de camada, para vencer o `animate-out` das utilidades. */
+@keyframes sheet-sai-esquerda {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@keyframes sheet-sai-direita {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes fundo-sai {
+  to {
+    opacity: 0;
+  }
+}
+[role="dialog"][data-state="closed"][class*="slide-out-to-left"] {
+  animation: sheet-sai-esquerda var(--mov-curta) var(--curva-entra-sai) both;
+}
+[role="dialog"][data-state="closed"][class*="slide-out-to-right"] {
+  animation: sheet-sai-direita var(--mov-curta) var(--curva-entra-sai) both;
+}
+.fixed.inset-0[data-state="closed"][class*="fade-out-0"] {
+  animation: fundo-sai var(--mov-curta) var(--curva-entra-sai) both;
+}
+/* Movimento reduzido na coordenação: as entradas não tocam nem por 0,01ms. Com a regra geral,
+   o 1º quadro ainda pinta o estado inicial (lista ou check em branco por um instante); aqui o
+   elemento já nasce no estado final. Só entradas, só dentro da área da coordenação. */
+@media (prefers-reduced-motion: reduce) {
+  .area-coordenacao
+    :is(
+      .anima-subir,
+      .anima-aparecer,
+      .anima-surgir,
+      .anima-pop,
+      .anima-encher,
+      .anima-desenhar,
+      .anima-da-direita,
+      .anima-da-esquerda,
+      .erro-surge,
+      .revelar,
+      .revelar-filhos > *,
+      .barra-cheia,
+      .desenho-svg .traco,
+      .depois-das-barras,
+      .form-coordenacao p[id$="-erro"]
+    ) {
+    animation: none !important;
+  }
+}
