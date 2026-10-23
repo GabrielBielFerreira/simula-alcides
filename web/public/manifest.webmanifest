@@ -1,0 +1,30 @@
+{
+  "id": "/app",
+  "name": "Simula Alcides",
+  "short_name": "Simula Alcides",
+  "description": "Simulados do ENEM gratuitos da Rede de Cursinhos Populares Alcides Nascimento.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbefd6",
+  "theme_color": "#ffffff",
+  "categories": ["education"],
+  "icons": [
+    { "src": "/icons/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icons/icone-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icone-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
