@@ -19,6 +19,7 @@ import { Route as NovaSenhaRouteImport } from './routes/nova-senha'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminEquipeRouteImport } from './routes/admin/equipe'
 import { Route as AdminQuestoesRouteImport } from './routes/admin/questoes'
 import { Route as AdminRedacoesRouteImport } from './routes/admin/redacoes'
 import { Route as AdminSimuladosRouteImport } from './routes/admin/simulados'
@@ -82,6 +83,11 @@ const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEquipeRoute = AdminEquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminQuestoesRoute = AdminQuestoesRouteImport.update({
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/nova-senha': typeof NovaSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/admin/equipe': typeof AdminEquipeRoute
   '/admin/questoes': typeof AdminQuestoesRoute
   '/admin/redacoes': typeof AdminRedacoesRoute
   '/admin/simulados': typeof AdminSimuladosRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/nova-senha': typeof NovaSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/admin/equipe': typeof AdminEquipeRoute
   '/admin/questoes': typeof AdminQuestoesRoute
   '/admin/redacoes': typeof AdminRedacoesRoute
   '/admin/simulados': typeof AdminSimuladosRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/nova-senha': typeof NovaSenhaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/admin/equipe': typeof AdminEquipeRoute
   '/admin/questoes': typeof AdminQuestoesRoute
   '/admin/redacoes': typeof AdminRedacoesRoute
   '/admin/simulados': typeof AdminSimuladosRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/nova-senha'
     | '/privacidade'
     | '/recuperar-senha'
+    | '/admin/equipe'
     | '/admin/questoes'
     | '/admin/redacoes'
     | '/admin/simulados'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/nova-senha'
     | '/privacidade'
     | '/recuperar-senha'
+    | '/admin/equipe'
     | '/admin/questoes'
     | '/admin/redacoes'
     | '/admin/simulados'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/nova-senha'
     | '/privacidade'
     | '/recuperar-senha'
+    | '/admin/equipe'
     | '/admin/questoes'
     | '/admin/redacoes'
     | '/admin/simulados'
@@ -394,6 +406,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/equipe': {
+      id: '/admin/equipe'
+      path: '/equipe'
+      fullPath: '/admin/equipe'
+      preLoaderRoute: typeof AdminEquipeRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/questoes': {
@@ -498,6 +517,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminEquipeRoute: typeof AdminEquipeRoute
   AdminQuestoesRoute: typeof AdminQuestoesRoute
   AdminRedacoesRoute: typeof AdminRedacoesRoute
   AdminSimuladosRoute: typeof AdminSimuladosRoute
@@ -508,6 +528,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminEquipeRoute: AdminEquipeRoute,
   AdminQuestoesRoute: AdminQuestoesRoute,
   AdminRedacoesRoute: AdminRedacoesRoute,
   AdminSimuladosRoute: AdminSimuladosRoute,

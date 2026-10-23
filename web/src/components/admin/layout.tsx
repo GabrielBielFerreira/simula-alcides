@@ -1,6 +1,15 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, MapPin, Menu, Users, type LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  Menu,
+  PenLine,
+  ShieldCheck,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -23,7 +32,7 @@ interface ItemMenu {
   nome: string;
   icone: LucideIcon;
   /** Por Compaz abre o polo da pessoa (ou o primeiro, na coordenação central). */
-  para: "/admin" | "/admin/estudantes" | "polo";
+  para: "/admin" | "/admin/estudantes" | "/admin/redacoes" | "/admin/equipe" | "polo";
   ativo: (caminho: string) => boolean;
   /** Só a coordenação central vê. */
   soCentral?: boolean;
@@ -44,10 +53,23 @@ const itensMenu: ItemMenu[] = [
     ativo: (c) => c.startsWith("/admin/estudantes"),
   },
   {
+    nome: "Redações",
+    icone: PenLine,
+    para: "/admin/redacoes",
+    ativo: (c) => c.startsWith("/admin/redacoes"),
+  },
+  {
     nome: "Por Compaz",
     icone: MapPin,
     para: "polo",
     ativo: (c) => c.startsWith("/admin/polos"),
+  },
+  {
+    nome: "Equipe",
+    icone: ShieldCheck,
+    para: "/admin/equipe",
+    ativo: (c) => c.startsWith("/admin/equipe"),
+    soCentral: true,
   },
 ];
 
