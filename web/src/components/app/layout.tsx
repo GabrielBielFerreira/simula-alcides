@@ -4,6 +4,7 @@ import { House, ClipboardList, PenLine, ChartLine, LogOut, LayoutDashboard } fro
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ExigeLogin, ehCoordenacao, iniciaisDe, useSessao } from "@/lib/sessao";
+import { ItemMenuInstalar } from "./instalar";
 
 const links = [
   { to: "/app", nome: "Início", I: House },
@@ -208,6 +209,7 @@ function MenuPerfil() {
           </div>
         )}
         <div className="border-t border-linha pt-2">
+          <ItemMenuInstalar aoEscolher={fechar} />
           <Button
             variant="ghost"
             className="w-full justify-start"

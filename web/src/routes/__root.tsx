@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SessaoProvider } from "../lib/sessao";
+import { CAPTURA_INSTALAR, iniciarInstalacao } from "../lib/instalar";
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
@@ -66,6 +67,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Simulados do ENEM gratuitos" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#ffffff" },
+      { name: "apple-mobile-web-app-title", content: "Simula Alcides" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
     ],
     links: [
       {
@@ -73,12 +78,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..900&family=Inter:wght@400;500;600;700&display=swap",
       },
     ],
+    // Guarda o aviso "pode instalar" do Chrome antes de o React carregar (ver lib/instalar).
+    scripts: [{ children: CAPTURA_INSTALAR }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -102,6 +111,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => iniciarInstalacao(), []);
 
   return (
     <QueryClientProvider client={queryClient}>

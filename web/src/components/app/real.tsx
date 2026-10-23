@@ -44,6 +44,7 @@ import { useSessao } from "@/lib/sessao";
 import { TextoQuestao } from "@/components/prova/prova";
 import { AvisoTri, BarraResultado, Cartao, Contagens, Titulo } from "./shared";
 import { AvisoErro, OpcaoMarcavel } from "./controles";
+import { ConviteInstalar } from "./instalar";
 
 function Falhou({ erro }: { erro: unknown }) {
   return (
@@ -391,6 +392,7 @@ export function InicioReal() {
         subtitulo="Uma questão de cada vez. Seu próximo passo está aqui."
       />
       {perfil && !perfil.telefone && <PedirTelefone />}
+      <ConviteInstalar />
       {catalogo.error ? (
         <Falhou erro={catalogo.error} />
       ) : !catalogo.data ? (
