@@ -58,12 +58,90 @@ const useCatalogo = () => useQuery({ queryKey: ["catalogo"], queryFn: buscarCata
 
 /* ---------- Catálogo ---------- */
 
+const nomeArea = (a: AreaId) => areas.find((x) => x.id === a)?.nome ?? a;
+
+/** O que cai em cada área do ENEM (aparece na escolha por área e nas instruções). */
+const conteudoArea: Record<AreaId, string> = {
+  linguagens: "Português, Literatura e Inglês ou Espanhol",
+  humanas: "História, Geografia, Filosofia e Sociologia",
+  natureza: "Biologia, Física e Química",
+  matematica: "Números, álgebra, geometria e estatística",
+};
+
+const destinoSimulado = (s: SimuladoReal) =>
+  s.status === "em_andamento" ? ("/prova/$id" as const) : ("/app/simulados/$id" as const);
+
+/** Opções do mesmo simulado, uma área por vez (mais a redação, que ainda vai chegar). */
+function EscolhaPorArea({ porArea }: { porArea: SimuladoReal[] }) {
+  return (
+    <div className="mt-5 border-t border-linha pt-4">
+      <p className="font-semibold">Ou treine só uma área</p>
+      <p className="text-sm text-muted-foreground">
+        Bom para reforçar a área em que você mais precisa.
+      </p>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {porArea.map((f) => {
+          const feito = f.status === "entregue" || f.status === "expirada";
+          return (
+            <li key={f.id}>
+              <Link
+                to={destinoSimulado(f)}
+                params={{ id: f.id }}
+                className="flex h-full min-h-14 flex-col gap-1.5 rounded-xl border border-linha bg-card p-3 transition-colors hover:bg-creme/60"
+              >
+                <span className="flex items-center justify-between gap-2">
+                  {f.area && <AreaChip area={f.area} curto />}
+                  <ArrowRight className="size-5 shrink-0 text-laranja-acao" aria-hidden />
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {f.area && `${conteudoArea[f.area]} · `}
+                  {f.questoes} questões · {f.duracao}
+                </span>
+                {f.status === "em_andamento" && (
+                  <span className="flex items-center gap-1.5 text-sm font-semibold">
+                    <Save className="size-4" aria-hidden />
+                    Em andamento: continuar
+                  </span>
+                )}
+                {feito && f.percentual !== null && (
+                  <span className="flex items-center gap-1.5 text-sm font-semibold">
+                    <CircleCheck className="size-4" aria-hidden />
+                    Última vez: {f.percentual.toLocaleString("pt-BR")}% de acertos
+                  </span>
+                )}
+              </Link>
+            </li>
+          );
+        })}
+        <li
+          aria-disabled="true"
+          className="flex min-h-14 flex-col gap-1.5 rounded-xl border border-dashed border-linha bg-creme/40 p-3"
+        >
+          <span className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full border-2 border-linha bg-card py-1 pl-1 pr-3 text-sm font-semibold text-marrom">
+              <span className="grid size-7 place-items-center rounded-full bg-creme">
+                <PenLine className="size-4" aria-hidden />
+              </span>
+              Redação
+            </span>
+            <Selo tom="creme">Em breve</Selo>
+          </span>
+          <span className="text-sm text-muted-foreground">Texto dissertativo-argumentativo</span>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
 export function CartaoSimuladoReal({
   s,
   destaque = false,
+  porArea = [],
 }: {
   s: SimuladoReal;
   destaque?: boolean;
+  /** Simulados por área que saíram deste (só para o simulado completo). */
+  porArea?: SimuladoReal[];
 }) {
   const andamento = s.status === "em_andamento";
   const feito = s.status === "entregue" || s.status === "expirada";
@@ -93,8 +171,16 @@ export function CartaoSimuladoReal({
       )}
       <div className="mt-4 flex flex-wrap gap-2">
         <Button asChild variant={destaque || andamento ? "default" : "outline"}>
-          <Link to={andamento ? "/prova/$id" : "/app/simulados/$id"} params={{ id: s.id }}>
-            {andamento ? "Continuar" : feito ? "Fazer de novo" : "Começar"}
+          <Link to={destinoSimulado(s)} params={{ id: s.id }}>
+            {andamento
+              ? "Continuar"
+              : porArea.length
+                ? feito
+                  ? "Fazer completo de novo"
+                  : "Fazer completo"
+                : feito
+                  ? "Fazer de novo"
+                  : "Começar"}
             <span className="sr-only">: {s.titulo}</span>
             <ArrowRight aria-hidden />
           </Link>
@@ -107,12 +193,21 @@ export function CartaoSimuladoReal({
           </Button>
         )}
       </div>
+      {porArea.length > 0 && <EscolhaPorArea porArea={porArea} />}
     </article>
   );
 }
 
+/** Separa os simulados completos dos por área (que aparecem dentro do cartão do completo). */
+function agrupar(catalogo: SimuladoReal[]) {
+  const completos = catalogo.filter((s) => !s.paiId);
+  const filhos = (id: string) => catalogo.filter((s) => s.paiId === id);
+  return { completos, filhos };
+}
+
 export function CatalogoReal() {
   const { data, error } = useCatalogo();
+  const grupos = data ? agrupar(data) : null;
   return (
     <>
       <Titulo titulo="Simulados" subtitulo="Um treino de cada vez. Escolha seu próximo passo." />
@@ -128,8 +223,8 @@ export function CatalogoReal() {
         />
       ) : (
         <div className="grid items-start gap-6 xl:grid-cols-2">
-          {data.map((s) => (
-            <CartaoSimuladoReal key={s.id} s={s} />
+          {grupos?.completos.map((s) => (
+            <CartaoSimuladoReal key={s.id} s={s} porArea={grupos.filhos(s.id)} />
           ))}
         </div>
       )}
@@ -189,7 +284,14 @@ export function InstrucoesReal({ id }: { id: string }) {
           Voltar para Simulados
         </Link>
       </Button>
-      <Titulo titulo={s.titulo} subtitulo="Prepare seu espaço e faça no seu ritmo." />
+      <Titulo
+        titulo={s.titulo}
+        subtitulo={
+          s.area
+            ? `Treino só de ${nomeArea(s.area)}: ${conteudoArea[s.area]}.`
+            : "Prepare seu espaço e faça no seu ritmo."
+        }
+      />
       <Selo tom="creme">{s.modalidade}</Selo>
       <div className="mt-6 space-y-6">
         <Cartao>
@@ -267,8 +369,9 @@ export function InicioReal() {
     enabled: Boolean(usuario),
   });
   const primeiroNome = perfil?.nome.split(/\s+/)[0] ?? "";
+  const grupos = catalogo.data ? agrupar(catalogo.data) : null;
   const andamento = catalogo.data?.find((s) => s.status === "em_andamento");
-  const proximo = andamento ?? catalogo.data?.find((s) => !s.status) ?? catalogo.data?.[0];
+  const proximo = andamento ?? grupos?.completos.find((s) => !s.status) ?? grupos?.completos[0];
   const entregues = (historico.data ?? []).filter((t) => t.status !== "em_andamento");
 
   return (
@@ -284,7 +387,11 @@ export function InicioReal() {
       ) : !catalogo.data ? (
         <Carregando />
       ) : proximo ? (
-        <CartaoSimuladoReal s={proximo} destaque />
+        <CartaoSimuladoReal
+          s={proximo}
+          destaque
+          porArea={grupos && !proximo.paiId ? grupos.filhos(proximo.id) : []}
+        />
       ) : null}
 
       <section className="mt-10">
@@ -453,8 +560,6 @@ export function RedacaoEmBreve() {
 }
 
 /* ---------- Resultado ---------- */
-
-const nomeArea = (a: AreaId) => areas.find((x) => x.id === a)?.nome ?? a;
 
 export function ResultadoReal({ id }: { id: string }) {
   const { data, error } = useQuery({

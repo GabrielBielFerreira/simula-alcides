@@ -99,16 +99,8 @@ export function SiteFooter() {
             <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-amarelo">
               Realização
             </p>
-            <div className="flex items-center gap-3">
-              {/* Espaço reservado para a logo do Sonhos da Periferia */}
-              <div
-                className="grid h-14 w-28 place-items-center rounded-lg border-2 border-dashed border-creme/40 text-xs text-creme/70"
-                aria-hidden
-              >
-                logo
-              </div>
-              <span className="font-semibold text-offwhite">Sonhos da Periferia</span>
-            </div>
+            {/* A logo do Sonhos da Periferia entra aqui quando o arquivo chegar. */}
+            <p className="font-display text-xl font-bold text-offwhite">Sonhos da Periferia</p>
           </div>
           <ul className="flex flex-wrap gap-x-6 gap-y-2">
             <li>

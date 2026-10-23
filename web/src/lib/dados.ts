@@ -11,7 +11,7 @@ export const AREA_DO_CODIGO: Record<string, AreaId> = {
   CN: "natureza",
   MT: "matematica",
 };
-const ORDEM_AREA: AreaId[] = ["linguagens", "humanas", "natureza", "matematica"];
+export const ORDEM_AREA: AreaId[] = ["linguagens", "humanas", "natureza", "matematica"];
 export const LETRAS = ["A", "B", "C", "D", "E"] as const;
 export type Letra = (typeof LETRAS)[number];
 
@@ -40,6 +40,10 @@ export interface SimuladoReal {
   tentativaId: string | null;
   status: "em_andamento" | "entregue" | "expirada" | null;
   percentual: number | null;
+  /** Simulado por área: o simulado completo de onde ele saiu. */
+  paiId: string | null;
+  /** Simulado por área: a área. */
+  area: AreaId | null;
 }
 
 interface LinhaCatalogo {
@@ -53,16 +57,18 @@ interface LinhaCatalogo {
   tentativa_id: string | null;
   tentativa_status: SimuladoReal["status"];
   percentual: number | null;
+  pai_id: string | null;
+  area: string | null;
 }
 
 export async function buscarCatalogo(): Promise<SimuladoReal[]> {
-  const { data, error } = await supabase.rpc("catalogo_simulados");
+  const { data, error } = await supabase.rpc("catalogo_com_areas");
   falhou(error);
   return (data as LinhaCatalogo[]).map((s) => ({
     id: s.id,
     titulo: s.titulo,
     instrucoes: s.instrucoes,
-    modalidade: s.total_questoes <= 30 ? "Rápido" : "Completo",
+    modalidade: s.pai_id ? "Por área" : s.total_questoes <= 30 ? "Rápido" : "Completo",
     duracaoMin: s.duracao_min,
     duracao: duracaoPorExtenso(s.duracao_min),
     questoes: s.total_questoes,
@@ -70,6 +76,8 @@ export async function buscarCatalogo(): Promise<SimuladoReal[]> {
     tentativaId: s.tentativa_id,
     status: s.tentativa_status,
     percentual: s.percentual === null ? null : Number(s.percentual),
+    paiId: s.pai_id,
+    area: s.area ? AREA_DO_CODIGO[s.area] : null,
   }));
 }
 
@@ -351,38 +359,160 @@ export async function painelPolos(): Promise<ResumoPoloReal[]> {
 export interface EstudantePainel {
   id: string;
   nome: string;
+  telefone: string | null;
+  email: string | null;
   poloId: string | null;
-  vinculo: string;
+  poloNome: string | null;
+  vinculo: "rede" | "outro_cursinho" | "independente";
+  cursinhoExterno: string | null;
   cadastradoEm: string;
   provas: number;
+  emAndamento: number;
   media: number | null;
-  ultimaProva: string | null;
+  ultimaAtividade: string | null;
 }
 
 export async function painelEstudantes(poloId: string | null): Promise<EstudantePainel[]> {
-  const { data, error } = await supabase.rpc("painel_estudantes", { p_polo: poloId });
+  const { data, error } = await supabase.rpc("painel_lista_estudantes", { p_polo: poloId });
   falhou(error);
   return (
     data as {
       estudante_id: string;
       nome: string;
+      telefone: string | null;
+      email: string | null;
       polo_id: string | null;
-      vinculo: string;
+      polo_nome: string | null;
+      vinculo: EstudantePainel["vinculo"];
+      cursinho_externo: string | null;
       cadastrado_em: string;
       provas_entregues: number;
+      em_andamento: number;
       media_percentual: number | null;
-      ultima_prova: string | null;
+      ultima_atividade: string | null;
     }[]
   ).map((e) => ({
     id: e.estudante_id,
     nome: e.nome,
+    telefone: e.telefone,
+    email: e.email,
     poloId: e.polo_id,
+    poloNome: e.polo_nome,
     vinculo: e.vinculo,
+    cursinhoExterno: e.cursinho_externo,
     cadastradoEm: e.cadastrado_em,
     provas: e.provas_entregues,
+    emAndamento: e.em_andamento,
     media: e.media_percentual === null ? null : Number(e.media_percentual),
-    ultimaProva: e.ultima_prova,
+    ultimaAtividade: e.ultima_atividade,
   }));
+}
+
+export interface TentativaFicha {
+  id: string;
+  simulado: string;
+  area: AreaId | null;
+  status: Tentativa["status"];
+  iniciadaEm: string;
+  prazoEm: string;
+  entregueEm: string | null;
+  total: number | null;
+  acertos: number | null;
+  erros: number | null;
+  emBranco: number | null;
+  percentual: number | null;
+  questoes: number;
+  respondidas: number;
+  /** Acertos por área (só depois de entregue). */
+  porArea: { area: AreaId; acertos: number; total: number }[] | null;
+}
+
+export interface FichaEstudante {
+  id: string;
+  nome: string;
+  telefone: string | null;
+  email: string | null;
+  vinculo: EstudantePainel["vinculo"];
+  poloId: string | null;
+  polo: string | null;
+  cursinhoExterno: string | null;
+  dataNascimento: string | null;
+  cadastradoEm: string;
+  tentativas: TentativaFicha[];
+}
+
+/** Ficha do estudante para a coordenação; null se não existir ou se não puder ver. */
+export async function fichaEstudante(id: string): Promise<FichaEstudante | null> {
+  const { data, error } = await supabase.rpc("ficha_estudante", { p_estudante: id });
+  falhou(error);
+  const f = data as {
+    perfil: {
+      id: string;
+      nome: string;
+      telefone: string | null;
+      email: string | null;
+      vinculo: EstudantePainel["vinculo"];
+      polo_id: string | null;
+      polo: string | null;
+      cursinho_externo: string | null;
+      data_nascimento: string | null;
+      cadastrado_em: string;
+    } | null;
+    tentativas: {
+      id: string;
+      simulado: string;
+      area: string | null;
+      status: Tentativa["status"];
+      iniciada_em: string;
+      prazo_em: string;
+      entregue_em: string | null;
+      total: number | null;
+      acertos: number | null;
+      erros: number | null;
+      em_branco: number | null;
+      percentual: number | null;
+      questoes: number;
+      respondidas: number;
+      por_area: Record<string, { total: number; acertos: number }> | null;
+    }[];
+  } | null;
+  if (!f?.perfil) return null;
+  const p = f.perfil;
+  return {
+    id: p.id,
+    nome: p.nome,
+    telefone: p.telefone,
+    email: p.email,
+    vinculo: p.vinculo,
+    poloId: p.polo_id,
+    polo: p.polo,
+    cursinhoExterno: p.cursinho_externo,
+    dataNascimento: p.data_nascimento,
+    cadastradoEm: p.cadastrado_em,
+    tentativas: f.tentativas.map((t) => ({
+      id: t.id,
+      simulado: t.simulado,
+      area: t.area ? AREA_DO_CODIGO[t.area] : null,
+      status: t.status,
+      iniciadaEm: t.iniciada_em,
+      prazoEm: t.prazo_em,
+      entregueEm: t.entregue_em,
+      total: t.total,
+      acertos: t.acertos,
+      erros: t.erros,
+      emBranco: t.em_branco,
+      percentual: t.percentual === null ? null : Number(t.percentual),
+      questoes: t.questoes,
+      respondidas: t.respondidas,
+      porArea: t.por_area
+        ? ORDEM_AREA.flatMap((a) => {
+            const codigo = Object.keys(AREA_DO_CODIGO).find((c) => AREA_DO_CODIGO[c] === a)!;
+            const v = t.por_area?.[codigo];
+            return v ? [{ area: a, acertos: v.acertos, total: v.total }] : [];
+          })
+        : null,
+    })),
+  };
 }
 
 export const dataCurta = (iso: string) =>

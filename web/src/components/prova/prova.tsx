@@ -44,6 +44,8 @@ import {
   Moon,
   Minus,
   Plus,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -70,6 +72,7 @@ import { abrirProva, entregarProva, type ProvaCarregada, type QuestaoProva } fro
 import { Titulo, NaoEncontrado, Cartao } from "@/components/app/shared";
 import { MarcadorSelecionado } from "@/components/app/controles";
 import { cn } from "@/lib/utils";
+import { guardarSom, somLigadoSalvo, tocarAvanco } from "@/lib/som";
 import { useProva } from "./useProva";
 
 /** Questões da prova aberta (uma prova por vez na tela). */
@@ -545,6 +548,15 @@ function ProvaAberta({ dados }: { dados: ProvaCarregada }) {
   const router = useRouter();
   const [escuro, setEscuro] = useState(false);
   const [tamanho, setTamanho] = useState(17);
+  // Som ao avançar: ligado por padrão; a escolha fica no aparelho (lida depois de montar).
+  const [som, setSom] = useState(true);
+  useEffect(() => setSom(somLigadoSalvo()), []);
+  const trocarSom = () => {
+    const ligado = !som;
+    setSom(ligado);
+    guardarSom(ligado);
+    if (ligado) tocarAvanco();
+  };
   const [opcoes, setOpcoes] = useState(false);
   const [mapa, setMapa] = useState(false);
   const semRede = p.semRede;
@@ -610,7 +622,12 @@ function ProvaAberta({ dados }: { dados: ProvaCarregada }) {
   // Os botões da revisão somem: o foco vai para a questão escolhida.
   const irPelaRevisao = useEstavel((n: number) => irPara(n, { focar: true }));
   const voltar = () => irPara(revisao ? atual : atual - 1);
-  const avancar = () => (atual === questoes.length - 1 ? abrirRevisao() : irPara(atual + 1));
+  const avancar = () => {
+    if (revisao) return;
+    if (som) tocarAvanco();
+    if (atual === questoes.length - 1) abrirRevisao();
+    else irPara(atual + 1);
+  };
   const confirmar = (tipo: "sair" | "entregar", origem: HTMLElement) => {
     abridor.current = origem;
     setTipoConfirmacao(tipo);
@@ -1035,7 +1052,7 @@ function ProvaAberta({ dados }: { dados: ProvaCarregada }) {
           )}
         >
           <DialogTitle>Opções de leitura</DialogTitle>
-          <DialogDescription>Ajuste o texto e a aparência da prova.</DialogDescription>
+          <DialogDescription>Ajuste o texto, a aparência e o som da prova.</DialogDescription>
           <div className="flex items-center justify-between gap-3">
             <span id="rotulo-tamanho">Tamanho do texto</span>
             <div className="flex shrink-0 gap-2" role="group" aria-labelledby="rotulo-tamanho">
@@ -1064,6 +1081,9 @@ function ProvaAberta({ dados }: { dados: ProvaCarregada }) {
           </div>
           <Button variant="outline" aria-pressed={escuro} onClick={trocarTema}>
             {escuro ? <Sun /> : <Moon />}Modo escuro
+          </Button>
+          <Button variant="outline" aria-pressed={som} onClick={trocarSom}>
+            {som ? <Volume2 /> : <VolumeX />}Som ao avançar
           </Button>
         </DialogContent>
       </Dialog>

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, MapPin, Menu, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, LogOut, MapPin, Menu, Users, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -23,7 +23,7 @@ interface ItemMenu {
   nome: string;
   icone: LucideIcon;
   /** Por Compaz abre o polo da pessoa (ou o primeiro, na coordenação central). */
-  para: "/admin" | "polo";
+  para: "/admin" | "/admin/estudantes" | "polo";
   ativo: (caminho: string) => boolean;
   /** Só a coordenação central vê. */
   soCentral?: boolean;
@@ -38,15 +38,21 @@ const itensMenu: ItemMenu[] = [
     soCentral: true,
   },
   {
+    nome: "Estudantes",
+    icone: Users,
+    para: "/admin/estudantes",
+    ativo: (c) => c.startsWith("/admin/estudantes"),
+  },
+  {
     nome: "Por Compaz",
     icone: MapPin,
     para: "polo",
-    ativo: (c) => c.startsWith("/admin/polos") || c.startsWith("/admin/estudantes"),
+    ativo: (c) => c.startsWith("/admin/polos"),
   },
 ];
 
 function tituloDaPagina(caminho: string) {
-  if (caminho.startsWith("/admin/estudantes")) return "Ficha do estudante";
+  if (/^\/admin\/estudantes\/[^/]+/.test(caminho)) return "Ficha do estudante";
   return itensMenu.find((i) => i.ativo(caminho))?.nome ?? "Visão geral";
 }
 
@@ -93,9 +99,9 @@ function ConteudoSidebar({
             .filter((item) => !(item.soCentral && ehPolo))
             .map(({ nome, icone: Icone, para, ativo }) => {
               const link =
-                para === "/admin"
-                  ? ({ to: "/admin" } as const)
-                  : ({ to: "/admin/polos/$poloId", params: { poloId: poloInicial } } as const);
+                para === "polo"
+                  ? ({ to: "/admin/polos/$poloId", params: { poloId: poloInicial } } as const)
+                  : ({ to: para } as const);
               const atual = ativo(caminho);
               return (
                 <li key={nome} className={cn(emSheet && "anima-aparecer [--atraso:120ms]")}>

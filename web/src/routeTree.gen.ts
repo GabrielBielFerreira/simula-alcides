@@ -25,6 +25,7 @@ import { Route as AdminSimuladosRouteImport } from './routes/admin/simulados'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppDesempenhoRouteImport } from './routes/app/desempenho'
 import { Route as ProvaIdRouteImport } from './routes/prova/$id'
+import { Route as AdminEstudantesIndexRouteImport } from './routes/admin/estudantes/index'
 import { Route as AdminEstudantesIdRouteImport } from './routes/admin/estudantes/$id'
 import { Route as AdminPolosPoloIdRouteImport } from './routes/admin/polos/$poloId'
 import { Route as AppRedacaoIndexRouteImport } from './routes/app/redacao/index'
@@ -113,6 +114,11 @@ const ProvaIdRoute = ProvaIdRouteImport.update({
   path: '/prova/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminEstudantesIndexRoute = AdminEstudantesIndexRouteImport.update({
+  id: '/estudantes/',
+  path: '/estudantes/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminEstudantesIdRoute = AdminEstudantesIdRouteImport.update({
   id: '/estudantes/$id',
   path: '/estudantes/$id',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/app/redacao/$id': typeof AppRedacaoIdRoute
   '/app/resultado/$id': typeof AppResultadoIdRoute
   '/app/simulados/$id': typeof AppSimuladosIdRoute
+  '/admin/estudantes/': typeof AdminEstudantesIndexRoute
   '/app/redacao/': typeof AppRedacaoIndexRoute
   '/app/simulados/': typeof AppSimuladosIndexRoute
 }
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/app/redacao/$id': typeof AppRedacaoIdRoute
   '/app/resultado/$id': typeof AppResultadoIdRoute
   '/app/simulados/$id': typeof AppSimuladosIdRoute
+  '/admin/estudantes': typeof AdminEstudantesIndexRoute
   '/app/redacao': typeof AppRedacaoIndexRoute
   '/app/simulados': typeof AppSimuladosIndexRoute
 }
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/app/redacao/$id': typeof AppRedacaoIdRoute
   '/app/resultado/$id': typeof AppResultadoIdRoute
   '/app/simulados/$id': typeof AppSimuladosIdRoute
+  '/admin/estudantes/': typeof AdminEstudantesIndexRoute
   '/app/redacao/': typeof AppRedacaoIndexRoute
   '/app/simulados/': typeof AppSimuladosIndexRoute
 }
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/app/redacao/$id'
     | '/app/resultado/$id'
     | '/app/simulados/$id'
+    | '/admin/estudantes/'
     | '/app/redacao/'
     | '/app/simulados/'
   fileRoutesByTo: FileRoutesByTo
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/app/redacao/$id'
     | '/app/resultado/$id'
     | '/app/simulados/$id'
+    | '/admin/estudantes'
     | '/app/redacao'
     | '/app/simulados'
   id:
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/app/redacao/$id'
     | '/app/resultado/$id'
     | '/app/simulados/$id'
+    | '/admin/estudantes/'
     | '/app/redacao/'
     | '/app/simulados/'
   fileRoutesById: FileRoutesById
@@ -426,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProvaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/estudantes/': {
+      id: '/admin/estudantes/'
+      path: '/estudantes'
+      fullPath: '/admin/estudantes/'
+      preLoaderRoute: typeof AdminEstudantesIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/estudantes/$id': {
       id: '/admin/estudantes/$id'
       path: '/estudantes/$id'
@@ -485,6 +504,7 @@ interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminEstudantesIdRoute: typeof AdminEstudantesIdRoute
   AdminPolosPoloIdRoute: typeof AdminPolosPoloIdRoute
+  AdminEstudantesIndexRoute: typeof AdminEstudantesIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -494,6 +514,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminEstudantesIdRoute: AdminEstudantesIdRoute,
   AdminPolosPoloIdRoute: AdminPolosPoloIdRoute,
+  AdminEstudantesIndexRoute: AdminEstudantesIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
