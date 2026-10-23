@@ -13,6 +13,15 @@ export function mascaraData(v: string) {
   return [numeros.slice(0, 2), numeros.slice(2, 4), numeros.slice(4)].filter(Boolean).join("/");
 }
 
+/** Máscara do WhatsApp: "81999998888" → "(81) 99999-8888". */
+export function mascaraTelefone(v: string) {
+  const n = v.replace(/\D/g, "").slice(0, 11);
+  if (n.length <= 2) return n.length ? `(${n}` : "";
+  if (n.length <= 6) return `(${n.slice(0, 2)}) ${n.slice(2)}`;
+  const corte = n.length === 11 ? 7 : 6;
+  return `(${n.slice(0, 2)}) ${n.slice(2, corte)}-${n.slice(corte)}`;
+}
+
 /** "DD/MM/AAAA" → "AAAA-MM-DD"; vazio quando a data está incompleta ou não existe (ex.: 31/02). */
 export function dataIsoDe(v: string) {
   const partes = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v);
@@ -59,6 +68,12 @@ export const regras = {
     if (!iso) return "Confira o dia e o mês. Exemplo: 12/05/2007";
     if (Number(iso.slice(0, 4)) < ANO_NASCIMENTO_MINIMO) return "Confira o ano de nascimento.";
     if (idadeEm(iso) < 0) return "A data de nascimento não pode ser depois de hoje.";
+    return undefined;
+  },
+  telefone: (v: string) => {
+    const n = v.replace(/\D/g, "");
+    if (!n) return "Informe seu WhatsApp com DDD.";
+    if (n.length < 10) return "Confira o número com DDD. Exemplo: (81) 99999-8888";
     return undefined;
   },
   nomeCursinho: (v: string) => (v.trim() ? undefined : "Escreva o nome do seu cursinho."),

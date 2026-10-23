@@ -14,6 +14,7 @@ export interface Perfil {
   vinculo: VinculoPerfil;
   polo_id: string | null;
   cursinho_externo: string | null;
+  telefone: string | null;
   papel: PapelPerfil;
   polo: { nome: string; bairro: string } | null;
 }
@@ -38,7 +39,7 @@ async function buscarPerfil(id: string): Promise<Perfil | null> {
   const { data } = await supabase
     .from("perfis")
     .select(
-      "id, nome, data_nascimento, vinculo, polo_id, cursinho_externo, papel, polo:polos(nome, bairro)",
+      "id, nome, data_nascimento, vinculo, polo_id, cursinho_externo, telefone, papel, polo:polos(nome, bairro)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -129,4 +130,13 @@ export function ExigeLogin({
       </main>
     );
   return <>{children}</>;
+}
+
+/** Nas telas de entrar e criar conta: quem já está logado vai direto para o app. */
+export function useVaiParaAppSeLogado() {
+  const { pronto, usuario } = useSessao();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (pronto && usuario) void navigate({ to: "/app", replace: true });
+  }, [pronto, usuario, navigate]);
 }

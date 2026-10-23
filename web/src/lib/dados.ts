@@ -416,3 +416,8 @@ export const POLO_UUID: Record<string, string> = {
 export const POLO_APELIDO: Record<string, string> = Object.fromEntries(
   Object.entries(POLO_UUID).map(([a, u]) => [u, a]),
 );
+
+export async function salvarMeuTelefone(telefone: string) {
+  const { error } = await supabase.rpc("salvar_meu_telefone", { p_telefone: telefone });
+  falhou(error);
+}

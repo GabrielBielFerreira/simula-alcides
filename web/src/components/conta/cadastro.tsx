@@ -13,23 +13,34 @@ import {
 } from "./layout";
 import { useEnvio } from "./envio";
 import { supabase } from "@/lib/supabase";
+import { useVaiParaAppSeLogado } from "@/lib/sessao";
 import { entrarComGoogle } from "@/lib/dados";
-import { dataIsoDe, focarCampo, mascaraData, regras, useFormulario } from "./validacao";
+import {
+  dataIsoDe,
+  focarCampo,
+  mascaraData,
+  mascaraTelefone,
+  regras,
+  useFormulario,
+} from "./validacao";
 
 /** /cadastro · cria a conta (e-mail ou Google) e segue às boas-vindas. */
 export function Cadastro() {
   const navigate = useNavigate();
+  useVaiParaAppSeLogado();
   const { enviando, enviar } = useEnvio<"google" | "email">();
   const form = useFormulario(
     {
       nome: regras.nome,
       email: regras.email,
+      telefone: regras.telefone,
       nascimento: regras.nascimento,
       senha: regras.senhaNova,
     },
-    { nome: "", email: "", nascimento: "", senha: "" },
+    { nome: "", email: "", telefone: "", nascimento: "", senha: "" },
   );
   const nascimento = form.campo("nascimento");
+  const telefone = form.campo("telefone");
   const [aceite, setAceite] = useState(false);
   const [cobrarAceite, setCobrarAceite] = useState(false);
   const erroAceite = cobrarAceite && !aceite;
@@ -59,6 +70,7 @@ export function Cadastro() {
                 data: {
                   nome: form.valores.nome.trim(),
                   data_nascimento: dataIsoDe(form.valores.nascimento),
+                  telefone: form.valores.telefone.replace(/\D/g, ""),
                 },
               },
             });
@@ -87,6 +99,18 @@ export function Cadastro() {
           placeholder="nome@email.com"
           required
           {...form.campo("email")}
+        />
+        <Campo
+          id="telefone"
+          rotulo="WhatsApp"
+          tipo="tel"
+          inputMode="tel"
+          autoComplete="tel-national"
+          placeholder="(81) 99999-8888"
+          dica="Para avisos de simulados e resultados."
+          required
+          {...telefone}
+          onChange={(v) => telefone.onChange(mascaraTelefone(v))}
         />
         <Campo
           id="nascimento"

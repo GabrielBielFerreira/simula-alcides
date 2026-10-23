@@ -11,12 +11,14 @@ import {
 } from "./layout";
 import { useEnvio } from "./envio";
 import { supabase } from "@/lib/supabase";
+import { useVaiParaAppSeLogado } from "@/lib/sessao";
 import { entrarComGoogle } from "@/lib/dados";
 import { focarCampo, regras, useFormulario } from "./validacao";
 
 /** /entrar · login por e-mail e senha ou com Google. */
 export function Entrar() {
   const navigate = useNavigate();
+  useVaiParaAppSeLogado();
   const { enviando, enviar } = useEnvio<"google" | "email">();
   const form = useFormulario(
     { email: regras.email, senha: regras.senha },

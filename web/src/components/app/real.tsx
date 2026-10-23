@@ -20,7 +20,10 @@ import {
   Scissors,
   WifiOff,
 } from "lucide-react";
-import { AreaChip, Carregando, EstadoVazio, Selo } from "@/components/ds";
+import { toast } from "sonner";
+import { AreaChip, Campo, Carregando, EstadoVazio, Selo } from "@/components/ds";
+import { mascaraTelefone, regras } from "@/components/conta/validacao";
+import { mensagemDeErro } from "@/components/conta/envio";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { areas } from "@/data/mock";
@@ -34,6 +37,7 @@ import {
   type QuestaoCorrigida,
   type SimuladoReal,
   type Tentativa,
+  salvarMeuTelefone,
 } from "@/lib/dados";
 import { useSessao } from "@/lib/sessao";
 import { TextoQuestao } from "@/components/prova/prova";
@@ -274,6 +278,7 @@ export function InicioReal() {
         titulo={primeiroNome ? `Oi, ${primeiroNome}!` : "Oi!"}
         subtitulo="Uma questão de cada vez. Seu próximo passo está aqui."
       />
+      {perfil && !perfil.telefone && <PedirTelefone />}
       {catalogo.error ? (
         <Falhou erro={catalogo.error} />
       ) : !catalogo.data ? (
@@ -297,6 +302,55 @@ export function InicioReal() {
         )}
       </section>
     </>
+  );
+}
+
+/** Quem entrou com Google (ou antes do campo existir) ainda não deixou o WhatsApp. */
+function PedirTelefone() {
+  const { recarregarPerfil } = useSessao();
+  const [valor, setValor] = useState("");
+  const [erro, setErro] = useState<string | undefined>();
+  const [salvando, setSalvando] = useState(false);
+  const salvar = async () => {
+    const e = regras.telefone(valor);
+    setErro(e);
+    if (e) return;
+    setSalvando(true);
+    try {
+      await salvarMeuTelefone(valor.replace(/\D/g, ""));
+      await recarregarPerfil();
+      toast.success("WhatsApp salvo!");
+    } catch (x) {
+      toast.error(mensagemDeErro(x));
+    } finally {
+      setSalvando(false);
+    }
+  };
+  return (
+    <form
+      noValidate
+      className="cartao mb-6 space-y-4 p-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void salvar();
+      }}
+    >
+      <Campo
+        id="whatsapp"
+        rotulo="Qual é o seu WhatsApp?"
+        tipo="tel"
+        inputMode="tel"
+        autoComplete="tel-national"
+        placeholder="(81) 99999-8888"
+        dica="A Rede usa para avisar de simulados e resultados."
+        value={valor}
+        erro={erro}
+        onChange={(v) => setValor(mascaraTelefone(v))}
+      />
+      <Button type="submit" disabled={salvando}>
+        {salvando ? "Salvando…" : "Salvar WhatsApp"}
+      </Button>
+    </form>
   );
 }
 

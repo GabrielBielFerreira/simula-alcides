@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useSessao } from "@/lib/sessao";
 
 /**
  * Cabeçalho das páginas públicas. Ao rolar, ganha a borda e uma sombra leve (`data-rolou`,
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
  */
 export function SiteHeader() {
   const cabecalho = useRef<HTMLElement>(null);
+  const { usuario } = useSessao();
 
   // Só marca o atributo (sem estado do React): rolar não renderiza nada de novo.
   useEffect(() => {
@@ -54,12 +56,20 @@ export function SiteHeader() {
           </span>
         </Link>
         <nav className="flex shrink-0 items-center gap-1">
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link to="/entrar">Entrar</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link to="/cadastro">Comece agora</Link>
-          </Button>
+          {usuario ? (
+            <Button asChild size="sm">
+              <Link to="/app">Abrir meus simulados</Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Link to="/entrar">Entrar</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/cadastro">Comece agora</Link>
+              </Button>
+            </>
+          )}
         </nav>
       </div>
     </header>
