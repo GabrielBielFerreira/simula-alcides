@@ -72,7 +72,7 @@ const conteudoArea: Record<AreaId, string> = {
 const destinoSimulado = (s: SimuladoReal) =>
   s.status === "em_andamento" ? ("/prova/$id" as const) : ("/app/simulados/$id" as const);
 
-/** Opções do mesmo simulado, uma área por vez (mais a redação, que ainda vai chegar). */
+/** Opções do mesmo simulado, uma área por vez, mais a redação. */
 function EscolhaPorArea({ porArea }: { porArea: SimuladoReal[] }) {
   return (
     <div className="mt-5 border-t border-linha pt-4">
@@ -114,22 +114,24 @@ function EscolhaPorArea({ porArea }: { porArea: SimuladoReal[] }) {
             </li>
           );
         })}
-        <li
-          aria-disabled="true"
-          className="flex min-h-14 flex-col gap-1.5 rounded-xl border border-dashed border-linha bg-creme/40 p-3"
-        >
-          <span className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border-2 border-linha bg-card py-1 pl-1 pr-3 text-sm font-semibold text-marrom">
-              <span className="grid size-7 place-items-center rounded-full bg-creme">
-                <PenLine className="size-4" aria-hidden />
+        <li>
+          <Link
+            to="/app/redacao"
+            className="flex h-full min-h-14 flex-col gap-1.5 rounded-xl border border-linha bg-card p-3 transition-colors hover:bg-creme/60"
+          >
+            <span className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border-2 border-linha bg-card py-1 pl-1 pr-3 text-sm font-semibold text-marrom">
+                <span className="grid size-7 place-items-center rounded-full bg-creme">
+                  <PenLine className="size-4" aria-hidden />
+                </span>
+                Redação
               </span>
-              Redação
+              <ArrowRight className="size-5 shrink-0 text-laranja-acao" aria-hidden />
             </span>
-            <span className="shrink-0 whitespace-nowrap">
-              <Selo tom="creme">Em breve</Selo>
+            <span className="text-sm text-muted-foreground">
+              Texto dissertativo-argumentativo · correção por IA
             </span>
-          </span>
-          <span className="text-sm text-muted-foreground">Texto dissertativo-argumentativo</span>
+          </Link>
         </li>
       </ul>
     </div>

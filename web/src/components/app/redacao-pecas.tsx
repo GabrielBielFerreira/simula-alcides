@@ -33,7 +33,7 @@ export function SeloPrevia() {
   return (
     <Selo tom="creme">
       <Sparkles className="size-4" aria-hidden />
-      Prévia · nota estimada por IA
+      Nota estimada por IA
     </Selo>
   );
 }

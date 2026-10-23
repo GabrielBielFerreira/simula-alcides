@@ -38,6 +38,7 @@ import {
 } from "@/lib/dados";
 import { iniciaisDe } from "@/lib/sessao";
 import { Avatar, CabecalhoAdmin, StatCard } from "./ui";
+import { RedacoesDaFicha } from "./redacoes";
 
 const media = (v: number | null) => (v === null ? "—" : `${formato(v)}%`);
 const nomeArea = (a: AreaId) => areas.find((x) => x.id === a)?.nome ?? a;
@@ -607,6 +608,9 @@ function ConteudoFicha({ f }: { f: FichaEstudante }) {
           ))}
         </ul>
       )}
+
+      <h2 className="mb-4 mt-10 text-2xl font-bold">Redações</h2>
+      <RedacoesDaFicha estudanteId={f.id} />
     </>
   );
 }

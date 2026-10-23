@@ -1,33 +1,70 @@
-import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   ChevronRight,
   CircleCheck,
+  Clock,
   Highlighter,
   Info,
   ListChecks,
   PenLine,
+  ShieldCheck,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EstadoVazio, Revelar } from "@/components/ds";
+import { Carregando, EstadoVazio, Revelar } from "@/components/ds";
 import { Button } from "@/components/ui/button";
-import { propostas, redacoesMaria } from "@/data/prototipo";
-import { datasRedacoes, detalhesPropostas, partesData, regrasRedacao } from "@/data/estudante";
+import { regrasRedacao } from "@/data/estudante";
+import { useSessao } from "@/lib/sessao";
+import {
+  buscarPropostas,
+  redacoesDoEstudante,
+  type PropostaReal,
+  type RedacaoResumo,
+} from "@/lib/redacao";
 import { Cartao, formato } from "./shared";
 import { AVISO_ESTIMATIVA, SeloPrevia } from "./redacao-pecas";
 
-type Redacao = (typeof redacoesMaria)[number];
+export const usePropostas = () =>
+  useQuery({ queryKey: ["propostas-redacao"], queryFn: buscarPropostas });
 
-/** /app/redacao · propostas de tema e redações de Maria. */
+export function useMinhasRedacoes() {
+  const { usuario } = useSessao();
+  return useQuery({
+    queryKey: ["minhas-redacoes", usuario?.id],
+    queryFn: () => redacoesDoEstudante(usuario!.id),
+    enabled: !!usuario,
+  });
+}
+
+const dataExtensa = (iso: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Recife",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(iso));
+
+/** /app/redacao · propostas de tema e redações do estudante. */
 export function RedacaoInicio() {
-  // Só para a demonstração: mostra a tela de quem ainda não escreveu nenhuma redação.
-  const [verVazio, setVerVazio] = useState(false);
-  const minhas: Redacao[] = verVazio ? [] : redacoesMaria;
-  const sugerida = propostas.find((p) => !minhas.some((r) => r.tema === p.tema)) ?? propostas[0];
-  // O tema sugerido vem primeiro: é o próximo passo de Maria.
-  const ordenadas = [sugerida, ...propostas.filter((p) => p.id !== sugerida.id)];
+  const propostas = usePropostas();
+  const minhasQ = useMinhasRedacoes();
+  const erro = propostas.error ?? minhasQ.error;
+  if (erro)
+    return (
+      <EstadoVazio
+        titulo="Não foi possível carregar"
+        texto={erro instanceof Error ? erro.message : "Verifique a internet e tente de novo."}
+        acao={<Button onClick={() => window.location.reload()}>Tentar de novo</Button>}
+      />
+    );
+  if (!propostas.data || !minhasQ.data) return <Carregando texto="Carregando a redação…" />;
+
+  const minhas = minhasQ.data;
+  const lista = propostas.data;
+  const sugerida = lista.find((p) => !minhas.some((r) => r.propostaId === p.id)) ?? lista[0];
+  // O tema sugerido vem primeiro: é o próximo passo do estudante.
+  const ordenadas = sugerida ? [sugerida, ...lista.filter((p) => p.id !== sugerida.id)] : [];
   return (
     <>
       <header className="mb-6">
@@ -43,11 +80,7 @@ export function RedacaoInicio() {
       {/* No celular, as redações vêm antes das propostas; no desktop, ficam à direita. */}
       <div className="grid items-start gap-6 xl:grid-cols-3 xl:grid-rows-[auto_1fr]">
         <Revelar className="min-w-0 xl:col-start-3 xl:row-start-1">
-          <MinhasRedacoes
-            minhas={minhas}
-            verVazio={verVazio}
-            alternarDemonstracao={() => setVerVazio((v) => !v)}
-          />
+          <MinhasRedacoes minhas={minhas} />
         </Revelar>
         <section
           id="propostas"
@@ -58,16 +91,15 @@ export function RedacaoInicio() {
             Propostas
           </h2>
           <p className="mt-1 text-muted-foreground">
-            Temas autorais no estilo do ENEM, com textos motivadores.
+            Temas no estilo do ENEM, com textos motivadores.
           </p>
-          {/* Propostas em cascata (uma vez), a sugerida primeiro. */}
           <Revelar como="ul" escalonar className="mt-4 space-y-4">
             {ordenadas.map((p) => (
               <li key={p.id}>
                 <CartaoProposta
                   proposta={p}
-                  feita={minhas.find((r) => r.tema === p.tema)}
-                  sugerida={p.id === sugerida.id}
+                  feita={minhas.find((r) => r.propostaId === p.id)}
+                  sugerida={p.id === sugerida?.id}
                 />
               </li>
             ))}
@@ -86,23 +118,22 @@ function CartaoProposta({
   feita,
   sugerida,
 }: {
-  proposta: (typeof propostas)[number];
-  /** Redação de Maria sobre este tema, se houver. */
-  feita?: Redacao;
+  proposta: PropostaReal;
+  /** Redação do estudante sobre este tema, se houver (a mais recente). */
+  feita?: RedacaoResumo;
   /** Próximo tema sugerido: ganha o destaque de cartão tocável. */
   sugerida: boolean;
 }) {
-  const detalhe = detalhesPropostas[proposta.id];
   return (
     <article
       className={cn("cartao p-5 md:p-6", sugerida && "border-2 border-marrom shadow-cartao")}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-        <span className="font-bold uppercase tracking-[0.14em] text-rosa">{detalhe.eixo}</span>
+        <span className="font-bold uppercase tracking-[0.14em] text-rosa">{proposta.eixo}</span>
         {feita ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-creme px-2.5 py-0.5 font-semibold text-marrom ring-1 ring-linha">
             <CircleCheck className="size-4" aria-hidden />
-            Você escreveu em {feita.mes}
+            Você escreveu em {dataExtensa(feita.enviadaEm)}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amarelo px-2.5 py-0.5 font-semibold text-vinho">
@@ -112,10 +143,10 @@ function CartaoProposta({
         )}
       </div>
       <h3 className="mt-3 text-xl font-bold leading-snug md:text-[22px]">{proposta.tema}</h3>
-      <p className="mt-2 text-muted-foreground">{detalhe.resumo}</p>
+      {proposta.resumo && <p className="mt-2 text-muted-foreground">{proposta.resumo}</p>}
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          {detalhe.textos.length} textos motivadores · {regrasRedacao.minLinhas} a{" "}
+          {proposta.textos.length} textos motivadores · {regrasRedacao.minLinhas} a{" "}
           {regrasRedacao.maxLinhas} linhas
         </p>
         <Button asChild variant={sugerida ? "default" : "outline"} className="w-full sm:w-auto">
@@ -130,88 +161,71 @@ function CartaoProposta({
   );
 }
 
-function MinhasRedacoes({
-  minhas,
-  verVazio,
-  alternarDemonstracao,
-}: {
-  minhas: Redacao[];
-  verVazio: boolean;
-  alternarDemonstracao: () => void;
-}) {
-  const primeira = minhas[0];
-  const ultima = minhas[minhas.length - 1];
-  const [trocou, setTrocou] = useState(false);
+function MinhasRedacoes({ minhas }: { minhas: RedacaoResumo[] }) {
+  const corrigidas = minhas.filter((r) => r.nota !== null);
+  const primeira = corrigidas[corrigidas.length - 1];
+  const ultima = corrigidas[0];
   return (
     <Cartao>
       <h2 className="text-[22px] font-bold">Minhas redações</h2>
-      {/* Ao alternar a demonstração, o conteúdo troca com um fade curto. */}
-      <div
-        key={String(verVazio)}
-        className={cn(trocou && "anima-aparecer motion-reduce:animate-none")}
-      >
-        {minhas.length ? (
-          <>
-            {minhas.length > 1 && (
-              <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-acerto">
-                <TrendingUp className="size-4" aria-hidden />+{ultima.nota - primeira.nota} pontos
-                desde {primeira.mes}
-              </p>
-            )}
-            <ul className="mt-3 divide-y divide-linha">
-              {[...minhas].reverse().map((r) => {
-                const { dia, mesExtenso } = partesData(datasRedacoes[r.id]);
-                return (
-                  <li key={r.id}>
-                    <Link
-                      to="/app/redacao/$id"
-                      params={{ id: r.id }}
-                      className="-mx-2 flex min-h-[4.5rem] items-center gap-4 rounded-xl px-2 py-3 hover:bg-creme/60"
-                    >
-                      <span className="w-16 shrink-0">
+      {minhas.length ? (
+        <>
+          {corrigidas.length > 1 && ultima.nota! > primeira.nota! && (
+            <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-acerto">
+              <TrendingUp className="size-4" aria-hidden />+{ultima.nota! - primeira.nota!} pontos
+              desde a primeira
+            </p>
+          )}
+          <ul className="mt-3 divide-y divide-linha">
+            {minhas.map((r) => (
+              <li key={r.id}>
+                <Link
+                  to="/app/redacao/$id"
+                  params={{ id: r.id }}
+                  className="-mx-2 flex min-h-[4.5rem] items-center gap-4 rounded-xl px-2 py-3 hover:bg-creme/60"
+                >
+                  <span className="w-16 shrink-0">
+                    {r.nota !== null ? (
+                      <>
                         <span className="block font-display text-[28px] font-black leading-none tabular-nums text-rosa">
                           {r.nota}
                         </span>
                         <span className="mt-1 block text-sm text-muted-foreground">estimada</span>
+                      </>
+                    ) : (
+                      <span className="flex flex-col items-start gap-1 text-sm font-semibold text-muted-foreground">
+                        <Clock className="size-6" aria-hidden />
+                        sem nota
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-muted-foreground">
-                          {Number(dia)} de {mesExtenso}
-                        </span>
-                        <span className="mt-0.5 block font-semibold leading-snug">{r.tema}</span>
-                      </span>
-                      <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        ) : (
-          <div className="mt-4">
-            <EstadoVazio
-              icon={PenLine}
-              titulo="Sua primeira redação ainda está por vir"
-              texto="Escolha uma proposta e escreva no seu ritmo. A devolutiva chega em instantes."
-              acao={
-                <Button asChild>
-                  <a href="#propostas">Ver propostas</a>
-                </Button>
-              }
-            />
-          </div>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={() => {
-          setTrocou(true);
-          alternarDemonstracao();
-        }}
-        className="mt-3 min-h-11 text-sm text-muted-foreground underline underline-offset-4 hover:text-marrom"
-      >
-        {verVazio ? "Protótipo: voltar às redações de Maria" : "Protótipo: ver sem redações"}
-      </button>
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-muted-foreground">
+                      {dataExtensa(r.enviadaEm)}
+                      {r.nota === null && " · aguardando correção"}
+                    </span>
+                    <span className="mt-0.5 block font-semibold leading-snug">{r.tema}</span>
+                  </span>
+                  <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div className="mt-4">
+          <EstadoVazio
+            icon={PenLine}
+            titulo="Sua primeira redação ainda está por vir"
+            texto="Escolha uma proposta e escreva no seu ritmo. A devolutiva chega em instantes."
+            acao={
+              <Button asChild>
+                <a href="#propostas">Ver propostas</a>
+              </Button>
+            }
+          />
+        </div>
+      )}
     </Cartao>
   );
 }
@@ -224,6 +238,10 @@ function ComoEaDevolutiva() {
     },
     { icone: Highlighter, texto: "Trechos do seu texto comentados." },
     { icone: ListChecks, texto: "Plano de melhoria em 3 passos." },
+    {
+      icone: ShieldCheck,
+      texto: `Até ${regrasRedacao.porDia} redações por dia. Só o texto vai para a IA, sem seu nome nem seus dados.`,
+    },
   ];
   return (
     <Cartao>

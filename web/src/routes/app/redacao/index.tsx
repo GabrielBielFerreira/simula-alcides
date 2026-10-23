@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RedacaoEmBreve } from "@/components/app/real";
+import { RedacaoInicio } from "@/components/app/redacao";
 import { paginaHead } from "@/lib/pagina-head";
 
 export const Route = createFileRoute("/app/redacao/")({
   head: () => paginaHead("Redação"),
-  component: RedacaoEmBreve,
+  component: RedacaoInicio,
 });

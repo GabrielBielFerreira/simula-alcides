@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -7,44 +8,68 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  Clock,
   Loader2,
   PenLine,
+  RefreshCw,
   Save,
   Send,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { propostas, redacoesMaria } from "@/data/prototipo";
 import {
   checklistRevisao,
   competenciasCurtas,
   contarRedacao,
-  dataPorExtenso,
-  datasRedacoes,
-  detalhesPropostas,
-  devolutivas,
   estruturaRedacao,
   instrucaoProposta,
   mensagensCorrecao,
-  propostaSugerida,
   regrasProposta,
   regrasRedacao,
-  textosRedacao,
   type TextoMotivador,
 } from "@/data/estudante";
-import { EstadoVazio, Preenchimento } from "@/components/ds";
+import { Carregando, EstadoVazio, Preenchimento } from "@/components/ds";
+import {
+  buscarRedacao,
+  corrigirRedacao,
+  enviarRedacao,
+  lerRascunho,
+  salvarRascunhoLocal,
+  type PropostaReal,
+  type RedacaoCompleta,
+} from "@/lib/redacao";
 import { Cartao, Titulo } from "./shared";
 import { OpcaoMarcavel } from "./controles";
 import { Devolutiva, EtapasRedacao, SeloPrevia } from "./redacao-pecas";
+import { useMinhasRedacoes, usePropostas } from "./redacao";
 
-type Proposta = (typeof propostas)[number];
-type RedacaoMaria = (typeof redacoesMaria)[number];
+/** Falha da correção logo depois do envio, para a tela da redação mostrar sem perguntar de novo. */
+const falhasRecentes = new Map<string, string>();
 
-/** /app/redacao/$id · editor (ids de propostas) ou devolutiva (ids das redações de Maria). */
+const dataHora = (iso: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Recife",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+
+/** /app/redacao/$id · editor (id de proposta) ou redação enviada (id de redação). */
 export function RedacaoDetalhe({ id }: { id: string }) {
-  const proposta = propostas.find((p) => p.id === id);
-  const redacao = redacoesMaria.find((r) => r.id === id);
+  const propostas = usePropostas();
+  if (propostas.error)
+    return (
+      <EstadoVazio
+        titulo="Não foi possível carregar"
+        texto="Verifique a internet e tente de novo."
+        acao={<Button onClick={() => window.location.reload()}>Tentar de novo</Button>}
+      />
+    );
+  if (!propostas.data) return <Carregando texto="Carregando…" />;
+  const proposta = propostas.data.find((p) => p.id === id);
   return (
     <>
       <Button asChild variant="ghost" className="mb-4 -ml-3">
@@ -53,86 +78,205 @@ export function RedacaoDetalhe({ id }: { id: string }) {
           Voltar para Redação
         </Link>
       </Button>
-      {redacao ? (
-        <DevolutivaMaria redacao={redacao} />
-      ) : proposta ? (
+      {proposta ? (
         <EditorRedacao key={proposta.id} proposta={proposta} />
       ) : (
-        <EstadoVazio
-          titulo="Não encontramos isso por aqui"
-          texto="Essa proposta ou redação não está mais disponível. Que tal escolher um tema?"
-          acao={
-            <Button asChild>
-              <Link to="/app/redacao">Ver propostas</Link>
-            </Button>
-          }
-        />
+        <RedacaoEnviada key={id} id={id} propostas={propostas.data} />
       )}
     </>
   );
 }
 
-/* ---------- Devolutiva das redações de Maria (julho e setembro) ---------- */
+/* ---------- Redação enviada: devolutiva ou aguardando correção ---------- */
 
-function DevolutivaMaria({ redacao }: { redacao: RedacaoMaria }) {
-  const indice = redacoesMaria.indexOf(redacao);
-  const anterior = indice > 0 ? redacoesMaria[indice - 1] : undefined;
-  const seguinte = redacoesMaria[indice + 1];
-  const data = dataPorExtenso(datasRedacoes[redacao.id]);
+function RedacaoEnviada({ id, propostas }: { id: string; propostas: PropostaReal[] }) {
+  const q = useQuery({ queryKey: ["redacao", id], queryFn: () => buscarRedacao(id) });
+  const minhas = useMinhasRedacoes();
+  if (q.error)
+    return (
+      <EstadoVazio
+        titulo="Não foi possível carregar"
+        texto="Verifique a internet e tente de novo."
+        acao={<Button onClick={() => window.location.reload()}>Tentar de novo</Button>}
+      />
+    );
+  if (q.data === undefined) return <Carregando texto="Carregando sua redação…" />;
+  const r = q.data;
+  if (!r)
+    return (
+      <EstadoVazio
+        titulo="Não encontramos isso por aqui"
+        texto="Essa proposta ou redação não está mais disponível. Que tal escolher um tema?"
+        acao={
+          <Button asChild>
+            <Link to="/app/redacao">Ver propostas</Link>
+          </Button>
+        }
+      />
+    );
+
+  if (!r.devolutiva) return <AguardandoCorrecao redacao={r} />;
+
+  // Evolução: a redação corrigida anterior a esta, de qualquer tema.
+  const lista = minhas.data ?? [];
+  const anterior = lista
+    .slice(lista.findIndex((x) => x.id === r.id) + 1)
+    .find((x) => x.competencias);
+  const sugerida =
+    propostas.find((p) => !lista.some((x) => x.propostaId === p.id)) ??
+    propostas.find((p) => p.id !== r.propostaId);
+  const curto = (iso: string) =>
+    new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Recife",
+      day: "2-digit",
+      month: "2-digit",
+    }).format(new Date(iso));
   return (
     <>
-      <Titulo sobretitulo={`Devolutiva · ${redacao.mes} de 2026`} titulo={redacao.tema} />
+      <Titulo sobretitulo={`Devolutiva · ${dataHora(r.enviadaEm)}`} titulo={r.tema} />
       <div className="-mt-2 mb-6">
         <SeloPrevia />
       </div>
       <EtapasRedacao atual={4} />
       <Devolutiva
-        dados={devolutivas[redacao.id as "julho" | "setembro"]}
-        texto={textosRedacao[redacao.id]}
+        dados={r.devolutiva}
+        texto={r.texto}
         anterior={
-          anterior && {
-            rotulo: anterior.mes,
-            curto: anterior.mes.slice(0, 3),
-            competencias: anterior.competencias,
-          }
+          anterior?.competencias
+            ? {
+                rotulo: `a redação de ${curto(anterior.enviadaEm)}`,
+                curto: curto(anterior.enviadaEm),
+                competencias: anterior.competencias,
+              }
+            : undefined
         }
-        atual={{ rotulo: redacao.mes, curto: redacao.mes.slice(0, 3) }}
-        enviadaEm={data}
+        atual={{ rotulo: "esta", curto: "agora" }}
+        enviadaEm={dataHora(r.enviadaEm)}
         acaoSemAnterior={
-          seguinte && (
+          sugerida && (
             <Button asChild variant="outline">
-              <Link to="/app/redacao/$id" params={{ id: seguinte.id }}>
-                Ver a devolutiva de {seguinte.mes}
+              <Link to="/app/redacao/$id" params={{ id: sugerida.id }}>
+                Escrever outra redação
                 <ArrowRight />
               </Link>
             </Button>
           )
         }
         acao={
-          <Button asChild className="w-full sm:w-auto">
-            <Link to="/app/redacao/$id" params={{ id: propostaSugerida.id }}>
-              <PenLine />
-              Escrever a próxima redação
-            </Link>
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild className="w-full sm:w-auto">
+              <Link to="/app/redacao/$id" params={{ id: r.propostaId }}>
+                <PenLine />
+                Reescrever este tema
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link to="/app/redacao">Ver minhas redações</Link>
+            </Button>
+          </div>
         }
       />
     </>
   );
 }
 
+/** Redação enviada sem correção (a IA falhou ou ficou sem cota): permite pedir de novo. */
+function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
+  const cliente = useQueryClient();
+  const [falha, setFalha] = useState<string | null>(() => falhasRecentes.get(redacao.id) ?? null);
+  const [corrigindo, setCorrigindo] = useState(false);
+  const avaliadas = useAvancoCorrecao(corrigindo);
+
+  async function pedir() {
+    setCorrigindo(true);
+    setFalha(null);
+    const erro = await corrigirRedacao(redacao.id);
+    falhasRecentes.delete(redacao.id);
+    setCorrigindo(false);
+    if (erro) return setFalha(erro);
+    toast.success("Sua devolutiva está pronta");
+    await Promise.all([
+      cliente.invalidateQueries({ queryKey: ["redacao", redacao.id] }),
+      cliente.invalidateQueries({ queryKey: ["minhas-redacoes"] }),
+    ]);
+  }
+
+  return (
+    <>
+      <Titulo sobretitulo={`Enviada em ${dataHora(redacao.enviadaEm)}`} titulo={redacao.tema} />
+      <EtapasRedacao atual={3} />
+      {corrigindo ? (
+        <Corrigindo
+          titulo={(t) => <h2 className="text-[22px] font-bold">{t}</h2>}
+          avaliadas={avaliadas}
+        />
+      ) : (
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <Cartao>
+            <h2 className="text-[22px] font-bold">Seu texto</h2>
+            <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+              {redacao.palavras} palavras
+            </p>
+            <div className="mt-5 space-y-4 text-[17px] leading-[1.8]">
+              {redacao.texto
+                .split("\n")
+                .filter((p) => p.trim())
+                .map((p, i) => (
+                  <p key={i} className="indent-8">
+                    {p}
+                  </p>
+                ))}
+            </div>
+          </Cartao>
+          <div className="space-y-4 xl:sticky xl:top-6">
+            <Cartao>
+              <p className="flex items-center gap-2 font-semibold">
+                <Clock className="size-5 text-rosa" aria-hidden />
+                Aguardando correção
+              </p>
+              <p className="mt-2 text-muted-foreground" aria-live="polite">
+                {falha ?? "Sua redação está guardada. Toque abaixo para pedir a correção da IA."}
+              </p>
+              <Button className="mt-4 w-full" onClick={pedir}>
+                <RefreshCw />
+                Pedir correção
+              </Button>
+            </Cartao>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Enquanto a IA corrige (de 10 a 60 segundos), as competências vão sendo marcadas sem chegar
+ * à última: a quinta só fecha quando a devolutiva chega.
+ */
+function useAvancoCorrecao(ativo: boolean) {
+  const [avaliadas, setAvaliadas] = useState(0);
+  useEffect(() => {
+    if (!ativo) return;
+    setAvaliadas(0);
+    const limite = competenciasCurtas.length - 1;
+    const intervalo = setInterval(() => setAvaliadas((n) => Math.min(n + 1, limite)), 5000);
+    return () => clearInterval(intervalo);
+  }, [ativo]);
+  return avaliadas;
+}
+
 /* ---------- Editor: Proposta → Escrever → Revisar → Corrigindo → Devolutiva ---------- */
 
-const Etapa = { Proposta: 0, Escrever: 1, Revisar: 2, Corrigindo: 3, Devolutiva: 4 } as const;
+const Etapa = { Proposta: 0, Escrever: 1, Revisar: 2, Corrigindo: 3 } as const;
 type Etapa = (typeof Etapa)[keyof typeof Etapa];
 
 type Aviso = "curto" | "longo" | null;
 /** Avançar entra pela direita; voltar, pela esquerda. null: a 1ª etapa, que entra com a página. */
 type Direcao = "frente" | "tras" | null;
 
-function EditorRedacao({ proposta }: { proposta: Proposta }) {
-  const detalhe = detalhesPropostas[proposta.id];
-  const chave = `simula-redacao-${proposta.id}`;
+function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
+  const navigate = useNavigate();
+  const cliente = useQueryClient();
   const [etapa, setEtapa] = useState<Etapa>(Etapa.Proposta);
   const [texto, setTexto] = useState("");
   const [temRascunho, setTemRascunho] = useState(false);
@@ -140,54 +284,37 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
   // Cada tentativa de envio fora do limite faz o aviso surgir de novo.
   const [tentativasEnvio, setTentativasEnvio] = useState(0);
   const [direcao, setDirecao] = useState<Direcao>(null);
-  // Competências já avaliadas na etapa "Corrigindo" (de 0 a 5).
-  const [avaliadas, setAvaliadas] = useState(0);
+  const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+  const avaliadas = useAvancoCorrecao(etapa === Etapa.Corrigindo);
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const etapasRef = useRef<HTMLDivElement>(null);
   const etapaAnterior = useRef(etapa);
   const { linhas, palavras } = contarRedacao(texto);
-  const ultimaRedacao = redacoesMaria[redacoesMaria.length - 1];
 
   // Rascunho salvo neste aparelho (só no cliente).
   useEffect(() => {
-    try {
-      const salvo = sessionStorage.getItem(chave);
-      if (salvo) {
-        setTexto(salvo);
-        setTemRascunho(true);
-      }
-    } catch {
-      // Sem acesso ao armazenamento (ex.: aba anônima): começa sem rascunho.
+    const salvo = lerRascunho(proposta.id);
+    if (salvo) {
+      setTexto(salvo);
+      setTemRascunho(true);
     }
-  }, [chave]);
+  }, [proposta.id]);
+
+  // Salva sozinho enquanto o estudante escreve (1 segundo depois de parar).
+  useEffect(() => {
+    if (etapa !== Etapa.Escrever) return;
+    const t = setTimeout(() => salvarRascunhoLocal(proposta.id, texto), 1000);
+    return () => clearTimeout(t);
+  }, [texto, etapa, proposta.id]);
 
   // A cada troca de etapa: volta ao topo (ou às etapas) e leva o foco ao título da etapa.
   useEffect(() => {
     if (etapaAnterior.current === etapa) return;
     etapaAnterior.current = etapa;
-    // Em "Corrigindo" e na devolutiva, a tela começa nas etapas: no celular, o progresso e a
-    // nota ficam à vista logo de cara (o cabeçalho da proposta já foi visto).
-    if (etapa === Etapa.Corrigindo || etapa === Etapa.Devolutiva)
-      etapasRef.current?.scrollIntoView({ block: "start" });
+    if (etapa === Etapa.Corrigindo) etapasRef.current?.scrollIntoView({ block: "start" });
     else window.scrollTo({ top: 0 });
     tituloRef.current?.focus({ preventScroll: true });
-  }, [etapa]);
-
-  // "Corrigindo" simulado: marca as 5 competências uma a uma e, no fim, abre a devolutiva.
-  useEffect(() => {
-    if (etapa !== Etapa.Corrigindo) return;
-    setAvaliadas(0);
-    const total = competenciasCurtas.length;
-    const passo = regrasRedacao.duracaoCorrecao / (total + 1);
-    const intervalo = setInterval(() => setAvaliadas((n) => Math.min(n + 1, total)), passo);
-    const fim = setTimeout(() => {
-      setDirecao("frente");
-      setEtapa(Etapa.Devolutiva);
-    }, regrasRedacao.duracaoCorrecao);
-    return () => {
-      clearInterval(intervalo);
-      clearTimeout(fim);
-    };
   }, [etapa]);
 
   function irPara(nova: Etapa) {
@@ -196,9 +323,7 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
   }
 
   function salvarRascunho() {
-    try {
-      sessionStorage.setItem(chave, texto);
-    } catch {
+    if (!salvarRascunhoLocal(proposta.id, texto)) {
       toast.error("Não deu para salvar neste aparelho", {
         description: "O navegador bloqueou o armazenamento. Copie seu texto para não perder.",
       });
@@ -217,16 +342,27 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
           : null;
     setAviso(problema);
     if (problema) return setTentativasEnvio((n) => n + 1);
+    setErroEnvio(null);
     irPara(Etapa.Revisar);
   }
 
-  function confirmarEnvio() {
+  async function confirmarEnvio() {
+    setEnviando(true);
+    setErroEnvio(null);
+    let id: string;
     try {
-      sessionStorage.removeItem(chave);
-    } catch {
-      // Sem armazenamento, não há rascunho para apagar.
+      id = await enviarRedacao(proposta.id, texto);
+    } catch (e) {
+      setEnviando(false);
+      setErroEnvio(e instanceof Error ? e.message : "Não deu para enviar agora.");
+      return;
     }
+    salvarRascunhoLocal(proposta.id, "");
     irPara(Etapa.Corrigindo);
+    const falha = await corrigirRedacao(id);
+    if (falha) falhasRecentes.set(id, falha);
+    await cliente.invalidateQueries({ queryKey: ["minhas-redacoes"] });
+    void navigate({ to: "/app/redacao/$id", params: { id }, replace: true });
   }
 
   const tituloEtapa = (rotulo: string) => (
@@ -237,7 +373,7 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
 
   return (
     <>
-      <Titulo sobretitulo={`Proposta de redação · ${detalhe.eixo}`} titulo={proposta.tema} />
+      <Titulo sobretitulo={`Proposta de redação · ${proposta.eixo}`} titulo={proposta.tema} />
       <div className="-mt-2 mb-6">
         <SeloPrevia />
       </div>
@@ -267,9 +403,11 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
                   </p>
                 </div>
               </Cartao>
-              <Cartao titulo="Textos motivadores">
-                <TextosMotivadores textos={detalhe.textos} />
-              </Cartao>
+              {proposta.textos.length > 0 && (
+                <Cartao titulo="Textos motivadores">
+                  <TextosMotivadores textos={proposta.textos} />
+                </Cartao>
+              )}
             </div>
             <div className="space-y-6 xl:sticky xl:top-6">
               <Cartao titulo="Regras da folha">
@@ -297,9 +435,11 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
               <section className="cartao p-5 md:p-6" aria-label="Tema e textos motivadores">
                 <p className="text-sm font-semibold text-muted-foreground">Tema</p>
                 <p className="mt-1 font-display text-xl font-bold leading-snug">{proposta.tema}</p>
-                <Recolhivel titulo={`Textos motivadores (${detalhe.textos.length})`}>
-                  <TextosMotivadores textos={detalhe.textos} />
-                </Recolhivel>
+                {proposta.textos.length > 0 && (
+                  <Recolhivel titulo={`Textos motivadores (${proposta.textos.length})`}>
+                    <TextosMotivadores textos={proposta.textos} />
+                  </Recolhivel>
+                )}
                 {/* No celular e no notebook pequeno, a estrutura fica recolhida aqui; no desktop, ao lado. */}
                 <Recolhivel titulo="Estrutura sugerida" className="xl:hidden">
                   <EstruturaSugerida />
@@ -307,22 +447,9 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
               </section>
 
               <div>
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4">
-                  <label htmlFor="texto-redacao" className="font-semibold">
-                    Sua redação
-                  </label>
-                  <Button
-                    variant="link"
-                    className="min-h-11 px-0 text-sm"
-                    onClick={() => {
-                      // Como na folha do ENEM: parágrafos em linhas seguidas, sem linha em branco.
-                      setTexto(textosRedacao[proposta.id].replace(/\n+/g, "\n"));
-                      setAviso(null);
-                    }}
-                  >
-                    Preencher com texto de exemplo
-                  </Button>
-                </div>
+                <label htmlFor="texto-redacao" className="mb-2 block font-semibold">
+                  Sua redação
+                </label>
                 <FolhaRedacao
                   valor={texto}
                   aoMudar={(v) => {
@@ -332,6 +459,11 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
                   invalido={aviso !== null}
                 />
                 <Contador linhas={linhas} palavras={palavras} />
+                <p className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
+                  <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />O rascunho fica
+                  salvo neste aparelho. Não escreva seu nome nem dados pessoais: o texto é lido por
+                  uma IA do Google (Gemini).
+                </p>
                 <div aria-live="polite">
                   {aviso && (
                     <p
@@ -391,16 +523,30 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
                 <ChecklistRevisao />
               </Cartao>
               <div className="space-y-3">
-                <Button className="w-full" onClick={confirmarEnvio}>
-                  <Send />
-                  Confirmar envio
+                <Button className="w-full" onClick={confirmarEnvio} disabled={enviando}>
+                  {enviando ? <Loader2 className="animate-spin" /> : <Send />}
+                  {enviando ? "Enviando…" : "Confirmar envio"}
                 </Button>
-                <Button variant="outline" className="w-full" onClick={() => irPara(Etapa.Escrever)}>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => irPara(Etapa.Escrever)}
+                  disabled={enviando}
+                >
                   <ArrowLeft />
                   Voltar e editar
                 </Button>
+                <div aria-live="polite">
+                  {erroEnvio && (
+                    <p className="flex items-start gap-2 rounded-xl bg-mostarda/25 px-4 py-3 text-marrom">
+                      <AlertCircle className="mt-1 size-5 shrink-0" aria-hidden />
+                      {erroEnvio}
+                    </p>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground">
-                  Depois de enviar, o texto não muda mais. A devolutiva chega em instantes.
+                  Depois de enviar, o texto não muda mais. A devolutiva costuma chegar em menos de
+                  um minuto. Você pode enviar até {regrasRedacao.porDia} redações por dia.
                 </p>
               </div>
             </div>
@@ -408,36 +554,6 @@ function EditorRedacao({ proposta }: { proposta: Proposta }) {
         )}
 
         {etapa === Etapa.Corrigindo && <Corrigindo titulo={tituloEtapa} avaliadas={avaliadas} />}
-
-        {etapa === Etapa.Devolutiva && (
-          <>
-            <div className="mb-6">
-              {tituloEtapa("Sua devolutiva está pronta")}
-              <p className="mt-2 text-muted-foreground">
-                Veja o que já funciona no seu texto e o que dá para melhorar na próxima.
-              </p>
-            </div>
-            <Devolutiva
-              exemplo
-              dados={devolutivas.exemplo}
-              texto={texto}
-              anterior={{
-                rotulo: ultimaRedacao.mes,
-                curto: ultimaRedacao.mes.slice(0, 3),
-                competencias: ultimaRedacao.competencias,
-              }}
-              atual={{ rotulo: "agora", curto: "agora" }}
-              acao={
-                <Button asChild variant="outline" className="w-full sm:w-auto">
-                  <Link to="/app/redacao">
-                    Ver minhas redações
-                    <ArrowRight />
-                  </Link>
-                </Button>
-              }
-            />
-          </>
-        )}
       </div>
     </>
   );
@@ -600,16 +716,16 @@ function EstruturaSugerida() {
 }
 
 function TextosMotivadores({ textos }: { textos: TextoMotivador[] }) {
-  const romanos = ["I", "II", "III", "IV"];
+  const romanos = ["I", "II", "III", "IV", "V", "VI"];
   return (
     <ol className="space-y-4">
       {textos.map((t, i) => (
-        <li key={t.fonte} className="rounded-xl bg-creme p-4 md:p-5">
+        <li key={i} className="rounded-xl bg-creme p-4 md:p-5">
           <p className="text-sm font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Texto {romanos[i]}
           </p>
           <p className="mt-2">{t.texto}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{t.fonte}</p>
+          {t.fonte && <p className="mt-2 text-sm text-muted-foreground">{t.fonte}</p>}
         </li>
       ))}
     </ol>

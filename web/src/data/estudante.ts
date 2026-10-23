@@ -111,6 +111,8 @@ export const regrasRedacao = {
   minLinhas: 8,
   /** Estimativa de caracteres por linha manuscrita na folha oficial. */
   caracteresPorLinha: 65,
+  /** Redações enviadas por estudante por dia (o banco confere: limite_redacoes_dia). */
+  porDia: 3,
   /**
    * Duração simulada da etapa "Corrigindo", em milissegundos: as 5 competências são marcadas uma
    * a uma (600ms cada) e a devolutiva é montada em mais 600ms.
@@ -160,6 +162,7 @@ export const regrasProposta = [
   "Entre 8 e 30 linhas",
   "Proposta de intervenção que respeite os direitos humanos",
   "Use os textos motivadores como apoio, sem copiar trechos",
+  "Não escreva seu nome nem dados pessoais no texto",
 ];
 
 export const detalhesPropostas: Record<string, DetalheProposta> = {
