@@ -30,6 +30,7 @@ import { areas } from "@/data/mock";
 import type { AreaId } from "@/data/types";
 import {
   LETRAS,
+  ORDEM_AREA,
   buscarCatalogo,
   buscarResultado,
   dataCurta,
@@ -124,7 +125,9 @@ function EscolhaPorArea({ porArea }: { porArea: SimuladoReal[] }) {
               </span>
               Redação
             </span>
-            <Selo tom="creme">Em breve</Selo>
+            <span className="shrink-0 whitespace-nowrap">
+              <Selo tom="creme">Em breve</Selo>
+            </span>
           </span>
           <span className="text-sm text-muted-foreground">Texto dissertativo-argumentativo</span>
         </li>
@@ -201,7 +204,11 @@ export function CartaoSimuladoReal({
 /** Separa os simulados completos dos por área (que aparecem dentro do cartão do completo). */
 function agrupar(catalogo: SimuladoReal[]) {
   const completos = catalogo.filter((s) => !s.paiId);
-  const filhos = (id: string) => catalogo.filter((s) => s.paiId === id);
+  // Na ordem do ENEM: Linguagens, Humanas, Natureza, Matemática.
+  const filhos = (id: string) =>
+    catalogo
+      .filter((s) => s.paiId === id)
+      .sort((a, b) => ORDEM_AREA.indexOf(a.area!) - ORDEM_AREA.indexOf(b.area!));
   return { completos, filhos };
 }
 
