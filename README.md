@@ -6,6 +6,7 @@ Plataforma gratuita de simulados do ENEM da Rede de Cursinhos Populares Alcides 
 
 - Planejamento completo: [documento de planejamento](https://claude.ai/artifact/LyJSHqk8QgB6PG1rcxsSCq) (resumo em [`docs/planejamento.md`](docs/planejamento.md))
 - Identidade visual: [`docs/identidade-visual.md`](docs/identidade-visual.md)
+- Back-end: [`docs/arquitetura.md`](docs/arquitetura.md), [`docs/modelo-de-dados.md`](docs/modelo-de-dados.md) e [`docs/api.md`](docs/api.md) (contratos que as telas consomem)
 
 ## Situação
 
@@ -25,7 +26,7 @@ Próximo passo: Etapa 1 (MVP), em fatias: login e onboarding → banco de quest�
 | Interface | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
 | Banco, login, arquivos | Supabase (PostgreSQL com Row Level Security, Auth, Storage) |
 | Hospedagem | Vercel, publicando a cada push no GitHub |
-| IA de redação (Etapa 2) | API do Claude, chamada apenas pelo servidor |
+| IA de redação (Etapa 2) | API do Gemini, chamada apenas pelo servidor |
 | Testes | Vitest (regras em TypeScript) e scripts SQL (regras do banco) |
 
 ## Rodar no computador
