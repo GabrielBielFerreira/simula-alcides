@@ -76,7 +76,7 @@ export function SeloDemonstracao({ className }: { className?: string }) {
 
 /* ---------- Cabeçalho de página ---------- */
 
-/** Cabeçalho das telas da coordenação: sobretítulo, título Fraunces 900 e ações à direita. */
+/** Cabeçalho das telas da coordenação: sobretítulo, título Plus Jakarta Sans 800 e ações à direita. */
 export function CabecalhoAdmin({
   sobretitulo,
   titulo,

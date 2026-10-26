@@ -257,7 +257,7 @@ const Alternativa = memo(function Alternativa({
           }
         }}
         className={cn(
-          "selecionavel min-h-14 min-w-0 flex-1 justify-start whitespace-normal border-borda-controle px-3 py-3 text-left text-[1em] text-inherit active:scale-[0.99]",
+          "selecionavel min-h-14 min-w-0 flex-1 justify-start whitespace-normal rounded-xl border-[1.5px] border-linha px-3 py-3 text-left shadow-none hover:border-borda-controle/70 text-[1em] text-inherit active:scale-[0.99]",
           escolhida && "selecionado",
         )}
       >

@@ -25,45 +25,52 @@ export * from "./movimento";
 /* ---------- Áreas do ENEM ---------- */
 export const areaVisual: Record<
   AreaId,
-  { icon: LucideIcon; bg: string; text: string; border: string; soft: string }
+  { icon: LucideIcon; bg: string; text: string; border: string; soft: string; cor: string }
 > = {
   linguagens: {
     icon: BookOpen,
     bg: "bg-area-linguagens",
     text: "text-offwhite",
     border: "border-area-linguagens",
-    soft: "bg-area-linguagens/10",
+    cor: "text-area-linguagens",
+    soft: "bg-area-linguagens/12",
   },
   humanas: {
     icon: Landmark,
     bg: "bg-area-humanas",
     text: "text-grafite",
     border: "border-area-humanas",
-    soft: "bg-area-humanas/15",
+    cor: "text-area-humanas",
+    soft: "bg-area-humanas/20",
   },
   natureza: {
     icon: FlaskConical,
     bg: "bg-area-natureza",
     text: "text-offwhite",
     border: "border-area-natureza",
-    soft: "bg-area-natureza/10",
+    cor: "text-area-natureza",
+    soft: "bg-area-natureza/12",
   },
   matematica: {
     icon: Calculator,
     bg: "bg-area-matematica",
     text: "text-grafite",
     border: "border-area-matematica",
-    soft: "bg-area-matematica/10",
+    cor: "text-area-matematica",
+    soft: "bg-area-matematica/12",
   },
 };
 
 export function AreaChip({
   area,
   curto,
+  claro,
   className,
 }: {
   area: AreaId;
   curto?: boolean;
+  /** Sobre fundo colorido (cartão de destaque). */
+  claro?: boolean;
   className?: string;
 }) {
   const v = areaVisual[area];
@@ -72,12 +79,17 @@ export function AreaChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border-2 bg-card py-1 pl-1 pr-3 text-sm font-semibold text-marrom",
-        v.border,
+        "inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold",
+        claro ? "bg-white/15 text-white ring-1 ring-white/25" : cn(v.soft, "text-marrom"),
         className,
       )}
     >
-      <span className={cn("grid size-7 place-items-center rounded-full", v.bg, v.text)}>
+      <span
+        className={cn(
+          "grid size-7 place-items-center rounded-full",
+          claro ? cn("bg-white", v.cor) : cn(v.bg, v.text),
+        )}
+      >
         <Icon className="size-4" aria-hidden />
       </span>
       {curto ? a?.nomeCurto : a?.nome}
@@ -126,12 +138,12 @@ export function Selo({
   const cls = {
     mostarda: "bg-mostarda text-marrom",
     rosa: "bg-rosa text-offwhite",
-    creme: "bg-creme text-vinho border border-linha",
+    creme: "bg-laranja-acao/10 text-laranja-acao",
   }[tom];
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold",
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-bold tracking-wide",
         cls,
       )}
     >
@@ -169,7 +181,7 @@ export function BarraProgresso({
         </div>
       )}
       <div
-        className="h-3 overflow-hidden rounded-full bg-creme ring-1 ring-linha"
+        className="h-2.5 overflow-hidden rounded-full bg-creme"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
@@ -239,7 +251,7 @@ export function Campo({
           aria-invalid={!!erro}
           aria-describedby={desc}
           className={cn(
-            "min-h-12 w-full rounded-xl border-2 bg-card px-4 pr-14 text-[17px] text-marrom placeholder:text-muted-foreground/70 focus-visible:outline-3 focus-visible:outline-laranja-acao",
+            "min-h-12 w-full rounded-xl border-[1.5px] bg-card px-4 pr-14 text-[17px] text-marrom placeholder:text-muted-foreground/70 focus-visible:outline-3 focus-visible:outline-laranja-acao",
             erro ? "border-erro" : "border-borda-controle hover:border-muted-foreground/50",
           )}
         />
@@ -283,8 +295,8 @@ export function EstadoVazio({
   icon?: LucideIcon;
 }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border-2 border-dashed border-linha bg-creme/50 px-6 py-10 text-center">
-      <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-card text-laranja ring-1 ring-linha">
+    <div className="flex flex-col items-center rounded-3xl border border-dashed border-borda-controle/50 bg-card px-6 py-10 text-center">
+      <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-laranja-acao/10 text-laranja-acao">
         <Icon className="size-7" aria-hidden />
       </span>
       <h3 className="text-xl font-bold">{titulo}</h3>

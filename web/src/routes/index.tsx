@@ -38,7 +38,7 @@ function Index() {
             <div className="anima-subir">
               <Selo>Gratuito para qualquer estudante</Selo>
             </div>
-            {/* Em telas estreitas o título quebra sempre em duas linhas, com ou sem a Fraunces
+            {/* Em telas estreitas o título quebra sempre em duas linhas, com ou sem a fonte de títulos
                 carregada: assim a troca de fonte não empurra o resto do herói. */}
             <h1 className="anima-subir text-5xl font-black md:text-7xl">
               Simula <br className="min-[25rem]:hidden" />

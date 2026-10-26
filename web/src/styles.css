@@ -10,7 +10,7 @@
  */
 
 @theme inline {
-  --font-display: "Fraunces", Georgia, serif;
+  --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -77,8 +77,9 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --shadow-suave: 0 1px 2px rgb(69 34 10 / 0.05), 0 4px 16px -8px rgb(69 34 10 / 0.12);
-  --shadow-cartao: 0 2px 0 var(--marrom);
+  --shadow-suave: 0 1px 2px rgb(28 23 39 / 0.04), 0 8px 24px -12px rgb(28 23 39 / 0.16);
+  --shadow-cartao: 0 1px 2px rgb(28 23 39 / 0.05), 0 18px 40px -18px rgb(208 63 12 / 0.35);
+  --shadow-botao: 0 1px 1px rgb(255 255 255 / 0.25) inset, 0 8px 18px -8px rgb(198 40 79 / 0.55);
 
   /* Movimento: `ease-saida`, `ease-entra-sai`; `transition-*` sem duração usa 140ms e a curva de saída. */
   --ease-saida: var(--curva-saida);
@@ -88,27 +89,30 @@
 }
 
 :root {
-  --radius: 0.875rem;
+  --radius: 1rem;
 
+  /* 2026-10: visual mais leve e atual. Mesmas cores da marca (laranja, rosa, vinho, mostarda,
+     amarelo); o texto passa do marrom para um quase-preto e o fundo creme vira um neutro claro.
+     Os nomes antigos (marrom, creme, offwhite, linha) ficam para não mexer em cada tela. */
   --laranja: #e84e1b;
-  --laranja-acao: #b93a0f;
+  --laranja-acao: #d03f0c;
   --rosa: #c2274b;
   --vinho: #7a0021;
   --mostarda: #eaa842;
   --amarelo: #f8c23a;
-  --marrom: #45220a;
-  --grafite: #2b302b;
-  --area-natureza: var(--grafite);
-  --creme: #fbf1d6;
-  --offwhite: #fffbf2;
-  --linha: #e6d6b8;
-  --muted-text: #6b4a33;
+  --marrom: #1c1727;
+  --grafite: #2b2f36;
+  --area-natureza: #0b7a62;
+  --creme: #f3f1f6;
+  --offwhite: #f8f7fa;
+  --linha: #e8e5ee;
+  --muted-text: #625c70;
 
   --acerto: #1f7a3d;
   --erro: #b42318;
   --branco-q: #6b7280;
   --branco-q-texto: #4b5563;
-  --borda-controle: #94755a;
+  --borda-controle: #8a8496;
   --externos: #b0546a;
 
   --background: var(--offwhite);
@@ -157,6 +161,9 @@
     var(--laranja) 72%,
     var(--amarelo) 120%
   );
+  /* Cartões de destaque e botão principal: as duas cores do logo do Simula (laranja → magenta). */
+  --gradiente-marca: linear-gradient(135deg, #e8501d 0%, #d93a34 45%, #c6284f 100%);
+  --gradiente-botao: linear-gradient(135deg, #d03f0c 0%, #c6284f 100%);
 }
 
 @layer base {
@@ -179,8 +186,8 @@
   h3,
   .font-display {
     font-family: var(--font-display);
-    letter-spacing: 0;
-    line-height: 1.1;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
   }
   :focus-visible {
     outline: 3px solid var(--laranja-acao);
@@ -199,7 +206,7 @@
 
 /* Padrão discreto de casario do Recife */
 @utility casario {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Cpath d='M0 40V24h10v-8l6-5 6 5v8h8V14h12v26M42 40V20l8-7 8 7v20M58 40V26h14v-6h10v20M82 40V18l7-6 7 6v22M96 40V28h12v-9h12v21' fill='none' stroke='%2345220A' stroke-opacity='.09' stroke-width='1.4'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Cpath d='M0 40V24h10v-8l6-5 6 5v8h8V14h12v26M42 40V20l8-7 8 7v20M58 40V26h14v-6h10v20M82 40V18l7-6 7 6v22M96 40V28h12v-9h12v21' fill='none' stroke='%231C1727' stroke-opacity='.07' stroke-width='1.4'/%3E%3C/svg%3E");
   background-repeat: repeat-x;
   background-position: bottom;
 }
@@ -207,9 +214,46 @@
 /* Usa as variáveis de base (não as --color-*) para seguir o modo escuro da prova. */
 @utility cartao {
   background-color: var(--card);
-  border: 1.5px solid var(--linha);
-  border-radius: var(--radius-xl);
+  border: 1px solid var(--linha);
+  border-radius: 1.25rem;
   box-shadow: var(--shadow-suave);
+}
+
+/* Cartão de destaque: gradiente da marca, texto claro e um brilho suave no canto. */
+@utility cartao-marca {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: #fff;
+  background-image: var(--gradiente-marca);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-cartao);
+  &::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    right: -20%;
+    top: -40%;
+    width: 70%;
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgb(255 255 255 / 0.22), transparent 65%);
+    pointer-events: none;
+  }
+}
+
+@utility bg-gradiente-botao {
+  background-image: var(--gradiente-botao);
+}
+@utility bg-gradiente-marca {
+  background-image: var(--gradiente-marca);
+}
+
+/* Barras fixas (topo e abas do celular): vidro fosco sobre o conteúdo. */
+@utility vidro {
+  background-color: color-mix(in srgb, var(--card) 90%, transparent);
+  backdrop-filter: saturate(1.6) blur(14px);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px);
 }
 
 @utility container-site {
@@ -422,7 +466,7 @@
     inset: 0;
     z-index: -1;
     border-radius: inherit;
-    box-shadow: 0 14px 28px -14px rgb(69 34 10 / 0.3);
+    box-shadow: 0 16px 32px -16px rgb(28 23 39 / 0.28);
     opacity: 0;
     transition: opacity var(--mov-curta) var(--curva-saida);
     pointer-events: none;
@@ -645,7 +689,7 @@
 }
 
 @utility casario-claro {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Cpath d='M0 40V24h10v-8l6-5 6 5v8h8V14h12v26M42 40V20l8-7 8 7v20M58 40V26h14v-6h10v20M82 40V18l7-6 7 6v22M96 40V28h12v-9h12v21' fill='none' stroke='%23FBF1D6' stroke-opacity='.18' stroke-width='1.4'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40' viewBox='0 0 120 40'%3E%3Cpath d='M0 40V24h10v-8l6-5 6 5v8h8V14h12v26M42 40V20l8-7 8 7v20M58 40V26h14v-6h10v20M82 40V18l7-6 7 6v22M96 40V28h12v-9h12v21' fill='none' stroke='%23FFFFFF' stroke-opacity='.16' stroke-width='1.4'/%3E%3C/svg%3E");
   background-repeat: repeat-x;
   background-position: bottom;
 }
@@ -682,7 +726,7 @@
 }
 .selecionado {
   border: 2px solid var(--laranja-acao);
-  background: color-mix(in srgb, var(--laranja-acao) 8%, transparent);
+  background: color-mix(in srgb, var(--laranja-acao) 7%, transparent);
   /* Mesma transição do estado selecionado em todo o produto (com `selecionavel` no elemento,
      ela vale também ao desmarcar). */
   transition-property: color, background-color, border-color, opacity, scale, transform;
@@ -690,12 +734,13 @@
   transition-timing-function: var(--curva-saida);
 }
 .titulo-pagina {
-  font-size: 28px;
-  font-weight: 900;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 @media (min-width: 1024px) {
   .titulo-pagina {
-    font-size: 36px;
+    font-size: 38px;
   }
 }
 /* Toasts do sonner no ritmo do produto (durante o arrasto o sonner desliga a transição). */
@@ -706,8 +751,9 @@
 .toast-marca {
   background: var(--card) !important;
   color: var(--marrom) !important;
-  border: 1.5px solid var(--linha) !important;
-  border-radius: 14px !important;
+  border: 1px solid var(--linha) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-suave) !important;
   font-size: 15px !important;
 }
 .leitura-17 {

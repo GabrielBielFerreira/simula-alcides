@@ -48,7 +48,7 @@ function EstruturaApp() {
   return (
     <>
       <div className="min-h-dvh bg-background">
-        <aside className="fixed inset-y-0 left-0 hidden w-[264px] flex-col border-r border-linha bg-creme p-5 [view-transition-name:nav-app-lateral] lg:flex">
+        <aside className="fixed inset-y-0 left-0 hidden w-[264px] flex-col border-r border-linha bg-card p-5 [view-transition-name:nav-app-lateral] lg:flex">
           <Link to="/app">
             <img
               src="/brand/rcp-horizontal.png"
@@ -56,26 +56,16 @@ function EstruturaApp() {
               className="mb-8 w-full"
             />
           </Link>
-          <nav aria-label="Seções do app" className="space-y-2">
+          <nav aria-label="Seções do app" className="space-y-1">
             {links.map(({ to, nome, I }) => (
-              // Borda transparente sempre: o "selecionado" só troca a cor, sem empurrar o conteúdo.
-              // Fundo, borda e a barrinha à esquerda entram e saem suaves ao trocar de seção.
+              // Item ativo: pílula laranja clara com ícone e texto na cor de ação.
               <Button
                 asChild
                 key={to}
                 variant="ghost"
-                className="selecionavel group relative w-full justify-start border-2 border-transparent"
+                className="selecionavel min-h-12 w-full justify-start rounded-2xl px-4 text-muted-foreground hover:text-marrom data-[status=active]:bg-laranja-acao/10 data-[status=active]:font-bold data-[status=active]:text-laranja-acao"
               >
-                <Link
-                  to={to}
-                  preload="viewport"
-                  activeOptions={opcoesAtivo(to)}
-                  activeProps={{ className: "selecionado" }}
-                >
-                  <span
-                    aria-hidden
-                    className="absolute left-1.5 top-1/2 h-5 w-1 -translate-y-1/2 scale-y-0 rounded-full bg-laranja-acao opacity-0 transition-[opacity,scale] duration-220 ease-saida group-data-[status=active]:scale-y-100 group-data-[status=active]:opacity-100"
-                  />
+                <Link to={to} preload="viewport" activeOptions={opcoesAtivo(to)}>
                   <I aria-hidden />
                   {nome}
                 </Link>
@@ -83,7 +73,7 @@ function EstruturaApp() {
             ))}
           </nav>
           {polo && (
-            <div className="my-6 rounded-xl border border-linha bg-card p-4 text-sm">
+            <div className="my-6 rounded-2xl bg-creme p-4 text-sm">
               <p className="font-semibold">Seu polo</p>
               <p>
                 {polo.nome} · {polo.bairro}
@@ -98,17 +88,29 @@ function EstruturaApp() {
               </Link>
             </Button>
           )}
-          <div className="mt-auto border-t border-linha pt-5">
-            <p className="font-semibold">{perfil?.nome}</p>
-            <p className="text-sm text-muted-foreground">Seu caminho, no seu ritmo.</p>
-            <Button variant="ghost" onClick={sair}>
+          <div className="mt-auto flex items-center gap-3 border-t border-linha pt-5">
+            <span
+              aria-hidden
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-gradiente-botao text-sm font-bold text-white"
+            >
+              {iniciaisDe(perfil?.nome ?? "")}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold leading-snug">{perfil?.nome}</p>
+              <p className="text-sm text-muted-foreground">
+                {ehCoordenacao(perfil) ? "Coordenação" : "Estudante"}
+              </p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={sair} aria-label="Sair">
               <LogOut aria-hidden />
-              Sair
             </Button>
           </div>
         </aside>
-        <header className="flex h-16 items-center justify-between border-b border-linha bg-card px-4 [view-transition-name:nav-app-topo] lg:hidden">
-          <Link to="/app" className="flex min-h-11 items-center gap-2 font-semibold">
+        <header className="vidro sticky top-0 z-30 flex h-16 items-center justify-between border-b border-linha/70 px-4 [view-transition-name:nav-app-topo] lg:hidden">
+          <Link
+            to="/app"
+            className="flex min-h-11 items-center gap-2 font-display text-[17px] font-extrabold tracking-tight"
+          >
             <img src="/brand/simbolo-512.png" alt="" className="size-9" />
             Simula Alcides
           </Link>
@@ -121,7 +123,7 @@ function EstruturaApp() {
         </main>
         <nav
           aria-label="Seções do app"
-          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-linha bg-card pb-[env(safe-area-inset-bottom)] [view-transition-name:nav-app-inferior] lg:hidden"
+          className="vidro fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-linha/70 pb-[env(safe-area-inset-bottom)] [view-transition-name:nav-app-inferior] lg:hidden"
         >
           {links.map(({ to, nome, I }) => (
             // preload="viewport": o código das 4 abas baixa assim que a barra aparece, e o toque
@@ -180,7 +182,7 @@ function MenuPerfil() {
         <button
           type="button"
           aria-label={`Menu de ${nome}`}
-          className="grid size-11 place-items-center rounded-full bg-creme font-bold text-marrom ring-1 ring-linha hover:bg-linha/60"
+          className="grid size-10 place-items-center rounded-full bg-gradiente-botao text-sm font-bold text-white shadow-suave hover:brightness-110"
         >
           <span aria-hidden>{iniciaisDe(nome)}</span>
         </button>
@@ -188,7 +190,7 @@ function MenuPerfil() {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[min(18rem,calc(100vw-2rem))] rounded-xl border-linha p-2 shadow-suave"
+        className="w-[min(18rem,calc(100vw-2rem))] rounded-2xl border-linha p-2 shadow-suave"
       >
         <div className="px-3 pb-3 pt-2">
           <p className="font-semibold">{nome}</p>

@@ -2,18 +2,21 @@
  * Telas do estudante com os dados reais do banco: início, catálogo, instruções, resultado e
  * desempenho. Seguem o desenho do protótipo (Cartao, Titulo, AreaChip, Selo).
  */
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
+  ChevronRight,
   CircleCheck,
   ClipboardList,
   Clock,
   EyeOff,
   Flag,
+  Target,
+  TrendingUp,
   ListChecks,
   PenLine,
   Save,
@@ -21,7 +24,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import { AreaChip, Campo, Carregando, EstadoVazio, Selo } from "@/components/ds";
+import { AreaChip, Campo, Carregando, EstadoVazio, Selo, areaVisual } from "@/components/ds";
 import { mascaraTelefone, regras } from "@/components/conta/validacao";
 import { mensagemDeErro } from "@/components/conta/envio";
 import { Button } from "@/components/ui/button";
@@ -74,68 +77,92 @@ const destinoSimulado = (s: SimuladoReal) =>
   s.status === "em_andamento" ? ("/prova/$id" as const) : ("/app/simulados/$id" as const);
 
 /** Opções do mesmo simulado, uma área por vez, mais a redação. */
-function EscolhaPorArea({ porArea }: { porArea: SimuladoReal[] }) {
+function EscolhaPorArea({ porArea, solto = false }: { porArea: SimuladoReal[]; solto?: boolean }) {
   return (
-    <div className="mt-5 border-t border-linha pt-4">
-      <p className="font-semibold">Ou treine só uma área</p>
+    <div className={solto ? "" : "mt-5 border-t border-linha pt-4"}>
+      <p className="font-display text-lg font-bold">Ou treine só uma área</p>
       <p className="text-sm text-muted-foreground">
         Bom para reforçar a área em que você mais precisa.
       </p>
-      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+      <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
         {porArea.map((f) => {
           const feito = f.status === "entregue" || f.status === "expirada";
           return (
             <li key={f.id}>
-              <Link
+              <TileTreino
                 to={destinoSimulado(f)}
                 params={{ id: f.id }}
-                className="flex h-full min-h-14 flex-col gap-1.5 rounded-xl border border-linha bg-card p-3 transition-colors hover:bg-creme/60"
+                area={f.area}
+                nome={f.area ? (areas.find((x) => x.id === f.area)?.nomeCurto ?? "") : f.titulo}
+                detalhe={`${f.area ? `${conteudoArea[f.area]} · ` : ""}${f.questoes} questões · ${f.duracao}`}
               >
-                <span className="flex items-center justify-between gap-2">
-                  {f.area && <AreaChip area={f.area} curto />}
-                  <ArrowRight className="size-5 shrink-0 text-laranja-acao" aria-hidden />
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {f.area && `${conteudoArea[f.area]} · `}
-                  {f.questoes} questões · {f.duracao}
-                </span>
                 {f.status === "em_andamento" && (
-                  <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <span className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-laranja-acao">
                     <Save className="size-4" aria-hidden />
                     Em andamento: continuar
                   </span>
                 )}
                 {feito && f.percentual !== null && (
-                  <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <span className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-acerto">
                     <CircleCheck className="size-4" aria-hidden />
                     Última vez: {f.percentual.toLocaleString("pt-BR")}% de acertos
                   </span>
                 )}
-              </Link>
+              </TileTreino>
             </li>
           );
         })}
         <li>
-          <Link
+          <TileTreino
             to="/app/redacao"
-            className="flex h-full min-h-14 flex-col gap-1.5 rounded-xl border border-linha bg-card p-3 transition-colors hover:bg-creme/60"
-          >
-            <span className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border-2 border-linha bg-card py-1 pl-1 pr-3 text-sm font-semibold text-marrom">
-                <span className="grid size-7 place-items-center rounded-full bg-creme">
-                  <PenLine className="size-4" aria-hidden />
-                </span>
-                Redação
-              </span>
-              <ArrowRight className="size-5 shrink-0 text-laranja-acao" aria-hidden />
-            </span>
-            <span className="text-sm text-muted-foreground">
-              Texto dissertativo-argumentativo · correção por IA
-            </span>
-          </Link>
+            nome="Redação"
+            detalhe="Texto dissertativo-argumentativo · correção por IA"
+          />
         </li>
       </ul>
     </div>
+  );
+}
+
+/** Atalho de treino: ícone colorido da área, nome, detalhe e seta. */
+function TileTreino({
+  to,
+  params,
+  area,
+  nome,
+  detalhe,
+  children,
+}: {
+  to: "/prova/$id" | "/app/simulados/$id" | "/app/redacao";
+  params?: { id: string };
+  area?: AreaId | null;
+  nome: string;
+  detalhe: string;
+  children?: ReactNode;
+}) {
+  const v = area ? areaVisual[area] : null;
+  const Icone = v?.icon ?? PenLine;
+  return (
+    <Link
+      to={to}
+      params={params as never}
+      className="cartao-interativo flex h-full min-h-16 items-center gap-3 rounded-2xl border border-linha bg-card p-3.5 hover:border-borda-controle/50"
+    >
+      <span
+        className={cn(
+          "grid size-11 shrink-0 place-items-center rounded-xl",
+          v ? cn(v.bg, v.text) : "bg-gradiente-botao text-white",
+        )}
+      >
+        <Icone className="size-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold leading-snug">{nome}</span>
+        <span className="block text-sm leading-snug text-muted-foreground">{detalhe}</span>
+        {children}
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+    </Link>
   );
 }
 
@@ -151,9 +178,62 @@ export function CartaoSimuladoReal({
 }) {
   const andamento = s.status === "em_andamento";
   const feito = s.status === "entregue" || s.status === "expirada";
+  const rotuloAcao = andamento
+    ? "Continuar"
+    : porArea.length
+      ? feito
+        ? "Fazer completo de novo"
+        : "Fazer completo"
+      : feito
+        ? "Fazer de novo"
+        : "Começar";
+  if (destaque)
+    // Início: o próximo simulado em destaque (gradiente da marca) e os treinos por área abaixo.
+    return (
+      <div className="space-y-4">
+        <article className="cartao-marca p-5 md:p-7">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[13px] font-bold tracking-wide">
+            {andamento ? "Continue de onde parou" : "Comece por aqui"}
+          </span>
+          <h2 className="mt-3 text-[24px] font-extrabold text-white md:text-[30px]">{s.titulo}</h2>
+          <p className="mt-1 text-white/85">
+            {s.questoes} questões · {s.duracao}
+            {feito && s.percentual !== null && (
+              <> · última vez {s.percentual.toLocaleString("pt-BR")}% de acertos</>
+            )}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {s.areas.map((a) => (
+              <AreaChip key={a} area={a} curto claro />
+            ))}
+          </div>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <Button asChild variant="claro" size="lg">
+              <Link to={destinoSimulado(s)} params={{ id: s.id }}>
+                {rotuloAcao}
+                <span className="sr-only">: {s.titulo}</span>
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+            {feito && s.tentativaId && (
+              <Button asChild variant="contornoClaro">
+                <Link to="/app/resultado/$id" params={{ id: s.tentativaId }}>
+                  Ver resultado
+                </Link>
+              </Button>
+            )}
+          </div>
+        </article>
+        {porArea.length > 0 && (
+          <section className="cartao p-5 md:p-6">
+            <EscolhaPorArea porArea={porArea} solto />
+          </section>
+        )}
+      </div>
+    );
   return (
-    <article className={cn("cartao p-5", destaque && "border-2 border-marrom shadow-cartao")}>
-      <Selo tom="creme">{destaque ? "Comece por aqui" : s.modalidade}</Selo>
+    <article className="cartao p-5 md:p-6">
+      <Selo tom="creme">{s.modalidade}</Selo>
       <h2 className="mt-3 text-[22px] font-bold">{s.titulo}</h2>
       <div className="my-3 flex flex-wrap gap-2">
         {s.areas.map((a) => (
@@ -164,29 +244,21 @@ export function CartaoSimuladoReal({
         {s.questoes} questões · {s.duracao}
       </p>
       {feito && s.percentual !== null && (
-        <p className="mt-3 flex items-center gap-2 text-sm font-semibold">
+        <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-acerto">
           <CircleCheck className="size-4" aria-hidden />
           Última vez: {s.percentual.toLocaleString("pt-BR")}% de acertos
         </p>
       )}
       {andamento && (
-        <p className="mt-3 flex items-center gap-2 text-sm font-semibold">
+        <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-laranja-acao">
           <Save className="size-4" aria-hidden />
           Em andamento
         </p>
       )}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button asChild variant={destaque || andamento ? "default" : "outline"}>
+        <Button asChild variant={andamento || !feito ? "default" : "outline"}>
           <Link to={destinoSimulado(s)} params={{ id: s.id }}>
-            {andamento
-              ? "Continuar"
-              : porArea.length
-                ? feito
-                  ? "Fazer completo de novo"
-                  : "Fazer completo"
-                : feito
-                  ? "Fazer de novo"
-                  : "Começar"}
+            {rotuloAcao}
             <span className="sr-only">: {s.titulo}</span>
             <ArrowRight aria-hidden />
           </Link>
@@ -393,6 +465,7 @@ export function InicioReal() {
       />
       {perfil && !perfil.telefone && <PedirTelefone />}
       <ConviteInstalar />
+      {entregues.length > 0 && <Numeros entregues={entregues} />}
       {catalogo.error ? (
         <Falhou erro={catalogo.error} />
       ) : !catalogo.data ? (
@@ -406,7 +479,7 @@ export function InicioReal() {
       ) : null}
 
       <section className="mt-10">
-        <h2 className="text-[22px] font-bold">Seus simulados</h2>
+        <h2 className="text-[22px] font-bold">Seus últimos resultados</h2>
         {!historico.data ? (
           <div className="mt-4">
             <Carregando />
@@ -420,6 +493,48 @@ export function InicioReal() {
         )}
       </section>
     </>
+  );
+}
+
+/** Faixa de números do Início: quantos simulados entregues, média e o último. */
+function Numeros({ entregues }: { entregues: Tentativa[] }) {
+  const media =
+    Math.round((entregues.reduce((n, t) => n + (t.percentual ?? 0), 0) / entregues.length) * 10) /
+    10;
+  const itens = [
+    {
+      I: ClipboardList,
+      n: String(entregues.length),
+      t: entregues.length === 1 ? "simulado feito" : "simulados feitos",
+      c: "bg-laranja-acao/10 text-laranja-acao",
+    },
+    {
+      I: Target,
+      n: `${media.toLocaleString("pt-BR")}%`,
+      t: "média de acertos",
+      c: "bg-rosa/10 text-rosa",
+    },
+    {
+      I: TrendingUp,
+      n: `${(entregues[0].percentual ?? 0).toLocaleString("pt-BR")}%`,
+      t: "no último",
+      c: "bg-area-natureza/10 text-area-natureza",
+    },
+  ];
+  return (
+    <ul className="mb-5 grid grid-cols-3 gap-2.5 md:gap-4">
+      {itens.map(({ I, n, t, c }) => (
+        <li key={t} className="cartao p-3 md:p-4">
+          <span className={cn("grid size-9 place-items-center rounded-xl", c)}>
+            <I className="size-5" aria-hidden />
+          </span>
+          <p className="mt-2 font-display text-[22px] font-extrabold tabular-nums leading-none md:text-3xl">
+            {n}
+          </p>
+          <p className="mt-1 text-[13px] leading-tight text-muted-foreground md:text-sm">{t}</p>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -480,18 +595,28 @@ function ListaTentativas({ itens }: { itens: Tentativa[] }) {
           <Link
             to="/app/resultado/$id"
             params={{ id: t.id }}
-            className="flex min-h-16 items-center gap-3 p-4 hover:bg-creme/60"
+            className="flex min-h-16 items-center gap-3 p-4 transition-colors first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-creme/70"
           >
+            <span
+              className={cn(
+                "grid size-12 shrink-0 place-items-center rounded-2xl font-display text-[15px] font-extrabold tabular-nums",
+                (t.percentual ?? 0) >= 60
+                  ? "bg-acerto/10 text-acerto"
+                  : (t.percentual ?? 0) >= 40
+                    ? "bg-amarelo/25 text-marrom"
+                    : "bg-laranja-acao/10 text-laranja-acao",
+              )}
+            >
+              {Math.round(t.percentual ?? 0)}%
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold">{t.titulo}</p>
+              <p className="font-semibold leading-snug">{t.titulo}</p>
               <p className="text-sm text-muted-foreground">
                 {dataCurta(t.entregueEm ?? t.iniciadaEm)} · {t.acertos ?? 0} de {t.total ?? 0}{" "}
                 acertos
               </p>
             </div>
-            <span className="font-display text-xl font-black tabular-nums">
-              {(t.percentual ?? 0).toLocaleString("pt-BR")}%
-            </span>
+            <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         </li>
       ))}
@@ -533,16 +658,18 @@ export function DesempenhoReal() {
         />
       ) : (
         <>
-          <Cartao>
-            <p className="text-muted-foreground">Média de acertos</p>
-            <p className="font-display text-5xl font-black tabular-nums">
+          <section className="cartao-marca p-5 md:p-7">
+            <p className="font-semibold text-white/85">Média de acertos</p>
+            <p className="font-display text-6xl font-extrabold tabular-nums text-white">
               {media?.toLocaleString("pt-BR")}%
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-white/85">
               Em {entregues.length} {entregues.length === 1 ? "simulado" : "simulados"}
             </p>
-            <AvisoTri />
-          </Cartao>
+            <p className="mt-3 text-sm text-white/80">
+              Percentual de acertos. Não é a nota TRI oficial do ENEM.
+            </p>
+          </section>
           <ListaTentativas itens={entregues} />
         </>
       )}
