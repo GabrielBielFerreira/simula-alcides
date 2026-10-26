@@ -93,7 +93,9 @@ export const pedirCorrecao = createServerFn({ method: "POST" })
         gravou = await banco.rpc("registrar_correcao_foto", {
           p_segredo: process.env.CORRECAO_SEGREDO ?? "",
           p_redacao: data.redacaoId,
+          p_fotos: fotos,
           p_texto: c.transcricao,
+          p_aviso: c.aviso || null,
           p_modelo: c.modelo,
           p_competencias: c.competencias,
           p_trechos: c.trechos,
@@ -122,6 +124,8 @@ export const pedirCorrecao = createServerFn({ method: "POST" })
 
     if (gravou.error) {
       if (gravou.error.message.includes("ja_corrigida")) return { ok: true };
+      // As fotos foram trocadas enquanto a IA corrigia: a correção antiga não vale.
+      if (gravou.error.message.includes("fotos_trocadas")) return { ok: false, motivo: "erro" };
       console.error("[redacao] registrar correção:", gravou.error.message);
       return { ok: false, motivo: "erro" };
     }
@@ -142,7 +146,7 @@ export const MENSAGEM_FALHA: Record<MotivoFalha, string> = {
   ilegivel:
     "A IA não conseguiu ler a sua folha nessa foto. Tire outra foto: folha inteira, de cima, com boa luz e sem sombra.",
   tentativas_esgotadas:
-    "Já tentamos corrigir esta redação algumas vezes sem sucesso. Ela ficou guardada e a coordenação pode revisar.",
+    "Já tentamos corrigir esta redação algumas vezes sem sucesso. Se ela foi por foto, mande uma foto nova; se não, a coordenação pode revisar.",
   sem_login: "Sua sessão expirou. Entre de novo para pedir a correção.",
   redacao_inexistente: "Não encontramos essa redação na sua conta.",
   erro: "Algo deu errado ao corrigir. Sua redação ficou guardada: tente de novo em alguns minutos.",

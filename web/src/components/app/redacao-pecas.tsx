@@ -273,11 +273,14 @@ export function Devolutiva({
   acao,
   acaoSemAnterior,
   fotos = [],
+  avisoLeitura,
 }: {
   dados: DadosDevolutiva;
   texto: string;
   /** Fotos da folha (redação manuscrita): o texto mostrado é o que a IA leu nelas. */
   fotos?: string[];
+  /** Aviso da IA sobre partes difíceis de ler na foto. */
+  avisoLeitura?: string | null;
   /** Redação anterior, para a evolução por competência. */
   anterior?: { rotulo: string; curto: string; competencias: number[] };
   /** Como chamar esta redação na comparação (ex.: "setembro" e "set"). */
@@ -404,6 +407,7 @@ export function Devolutiva({
               <p className="mt-1 text-sm text-muted-foreground">
                 Lido da sua foto pela IA. Se alguma palavra saiu diferente da folha, foi a leitura
                 da letra.
+                {avisoLeitura ? ` ${avisoLeitura}` : ""}
               </p>
             )}
             {trechos.length > 0 && (

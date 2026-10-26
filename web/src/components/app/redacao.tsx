@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Camera,
   ChevronRight,
   CircleCheck,
   Clock,
@@ -237,11 +238,12 @@ function ComoEaDevolutiva() {
       icone: Sparkles,
       texto: `Nota estimada de 0 a ${formato(1000)}, pelas 5 competências do ENEM.`,
     },
+    { icone: Camera, texto: "Escreva à mão e mande a foto: a IA lê a sua letra." },
     { icone: Highlighter, texto: "Trechos do seu texto comentados." },
     { icone: ListChecks, texto: "Plano de melhoria em 3 passos." },
     {
       icone: ShieldCheck,
-      texto: `Até ${regrasRedacao.porDia} redações por dia. Só o texto vai para a IA, sem seu nome nem seus dados.`,
+      texto: `Até ${regrasRedacao.porDia} redações por dia. A foto da folha é lida por uma IA do Google (Gemini) e fica guardada só para você e a coordenação. Não escreva seu nome na folha.`,
     },
   ];
   return (

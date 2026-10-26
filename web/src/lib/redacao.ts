@@ -57,6 +57,8 @@ export interface RedacaoCompleta extends RedacaoResumo {
   devolutiva: Devolutiva | null;
   /** Fotos da folha (caminhos no Storage), quando a redação foi escrita à mão. */
   fotos: string[];
+  /** Aviso da IA sobre partes difíceis de ler na foto. */
+  avisoLeitura: string | null;
 }
 
 interface LinhaCorrecao {
@@ -77,6 +79,7 @@ interface LinhaRedacao {
   texto?: string;
   palavras?: number;
   fotos?: string[];
+  aviso_leitura?: string | null;
   proposta: { titulo: string } | null;
   correcoes: LinhaCorrecao[];
 }
@@ -115,7 +118,7 @@ export async function buscarRedacao(id: string): Promise<RedacaoCompleta | null>
   const { data, error } = await supabase
     .from("redacoes")
     .select(
-      "id, proposta_id, status, enviada_em, created_at, texto, palavras, fotos, proposta:propostas_redacao(titulo), correcoes:correcoes_redacao(nota_total, competencias, trechos, plano, modelo, created_at)",
+      "id, proposta_id, status, enviada_em, created_at, texto, palavras, fotos, aviso_leitura, proposta:propostas_redacao(titulo), correcoes:correcoes_redacao(nota_total, competencias, trechos, plano, modelo, created_at)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -129,6 +132,7 @@ export async function buscarRedacao(id: string): Promise<RedacaoCompleta | null>
     palavras: r.palavras ?? 0,
     modelo: c?.modelo ?? null,
     fotos: r.fotos ?? [],
+    avisoLeitura: r.aviso_leitura ?? null,
     devolutiva: c
       ? {
           competencias: c.competencias.map((x) => x.nota),
@@ -157,6 +161,14 @@ const mensagemDeErro = (error: { message: string }) => {
     : "Não deu para enviar agora. Confira a internet e tente de novo.";
 };
 
+/** Quantas redações o estudante já enviou hoje (dia de Recife), pela lista já carregada. */
+export function enviadasHoje(lista: RedacaoResumo[]) {
+  const dia = (iso: string) =>
+    new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Recife" }).format(new Date(iso));
+  const hoje = dia(new Date().toISOString());
+  return lista.filter((r) => dia(r.enviadaEm) === hoje).length;
+}
+
 /** Envia as fotos da folha e cria a redação; devolve o id. Lança com mensagem para a tela. */
 export async function enviarRedacaoFoto(propostaId: string, arquivos: File[]): Promise<string> {
   const fotos = await enviarFotos(arquivos);
@@ -180,7 +192,7 @@ export async function trocarFotosRedacao(redacaoId: string, arquivos: File[]) {
 
 export interface FalhaCorrecao {
   mensagem: string;
-  /** A IA não conseguiu ler a foto: a tela oferece tirar outra. */
+  /** A IA não conseguiu ler a foto (ou já tentou demais): a tela oferece tirar outra. */
   ilegivel: boolean;
 }
 
@@ -204,7 +216,7 @@ export async function corrigirRedacao(redacaoId: string): Promise<FalhaCorrecao 
         : MENSAGEM_FALHA.ilegivel,
       ilegivel: true,
     };
-  return { mensagem: MENSAGEM_FALHA[r.motivo], ilegivel: false };
+  return { mensagem: MENSAGEM_FALHA[r.motivo], ilegivel: r.motivo === "tentativas_esgotadas" };
 }
 
 /* ---------- Redação escrita à mão (foto da folha) ---------- */

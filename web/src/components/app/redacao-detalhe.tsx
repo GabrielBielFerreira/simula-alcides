@@ -32,6 +32,7 @@ import { Carregando, EstadoVazio, Preenchimento } from "@/components/ds";
 import {
   buscarRedacao,
   corrigirRedacao,
+  enviadasHoje,
   enviarRedacaoFoto,
   trocarFotosRedacao,
   type FalhaCorrecao,
@@ -59,7 +60,8 @@ const dataHora = (iso: string) =>
 /** /app/redacao/$id · editor (id de proposta) ou redação enviada (id de redação). */
 export function RedacaoDetalhe({ id }: { id: string }) {
   const propostas = usePropostas();
-  if (propostas.error)
+  // Um erro ao recarregar em segundo plano (ex.: voltando da câmera) não derruba o editor.
+  if (propostas.error && !propostas.data)
     return (
       <EstadoVazio
         titulo="Não foi possível carregar"
@@ -141,6 +143,7 @@ function RedacaoEnviada({ id, propostas }: { id: string; propostas: PropostaReal
         dados={r.devolutiva}
         texto={r.texto}
         fotos={r.fotos}
+        avisoLeitura={r.avisoLeitura}
         anterior={
           anterior?.competencias
             ? {
@@ -189,6 +192,8 @@ function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
   const [corrigindo, setCorrigindo] = useState(false);
   const [novas, setNovas] = useState<FotoEscolhida[]>([]);
   const [trocando, setTrocando] = useState(false);
+  // Trocar a foto fica sempre à mão nas redações por foto (mesmo depois de recarregar a página).
+  const [mostrarTroca, setMostrarTroca] = useState(false);
   useLiberarPrevias(novas);
   const avaliadas = useAvancoCorrecao(corrigindo);
   const porFoto = redacao.fotos.length > 0;
@@ -197,7 +202,8 @@ function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
     setCorrigindo(true);
     setFalha(null);
     const erro = await corrigirRedacao(redacao.id);
-    falhasRecentes.delete(redacao.id);
+    if (erro) falhasRecentes.set(redacao.id, erro);
+    else falhasRecentes.delete(redacao.id);
     setCorrigindo(false);
     if (erro) return setFalha(erro);
     toast.success("Sua devolutiva está pronta");
@@ -216,15 +222,18 @@ function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
       );
     } catch (e) {
       setTrocando(false);
-      return setFalha({
-        mensagem: e instanceof Error ? e.message : "A foto não subiu. Tente de novo.",
-        ilegivel: true,
-      });
+      const mensagem = e instanceof Error ? e.message : "A foto não subiu. Tente de novo.";
+      // Sem mais trocas (ou já corrigida): some o seletor de fotos e fica só a mensagem.
+      const fim = /algumas vezes|já foi corrigida/.test(mensagem);
+      if (fim) setMostrarTroca(false);
+      return setFalha({ mensagem, ilegivel: !fim });
     }
-    setTrocando(false);
+    novas.forEach((f) => URL.revokeObjectURL(f.previa));
     setNovas([]);
-    await cliente.invalidateQueries({ queryKey: ["redacao", redacao.id] });
+    setMostrarTroca(false);
+    void cliente.invalidateQueries({ queryKey: ["redacao", redacao.id] });
     await pedir();
+    setTrocando(false);
   }
 
   return (
@@ -274,9 +283,22 @@ function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
                 {falha?.mensagem ??
                   "Sua redação está guardada. Toque abaixo para pedir a correção da IA."}
               </p>
-              {falha?.ilegivel && porFoto ? (
+              {porFoto && (falha?.ilegivel || mostrarTroca) ? (
                 <div className="mt-4 space-y-4">
                   <EscolherFotos fotos={novas} aoMudar={setNovas} desativado={trocando} />
+                  {mostrarTroca && !falha?.ilegivel && !trocando && (
+                    <Button
+                      variant="ghost"
+                      className="w-full"
+                      onClick={() => {
+                        novas.forEach((f) => URL.revokeObjectURL(f.previa));
+                        setNovas([]);
+                        setMostrarTroca(false);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  )}
                   {novas.length > 0 && (
                     <Button className="w-full" onClick={trocarEPedir} disabled={trocando}>
                       {trocando ? <Loader2 className="animate-spin" /> : <Send />}
@@ -285,10 +307,22 @@ function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
                   )}
                 </div>
               ) : (
-                <Button className="mt-4 w-full" onClick={pedir}>
-                  <RefreshCw />
-                  Pedir correção
-                </Button>
+                <div className="mt-4 space-y-3">
+                  <Button className="w-full" onClick={pedir}>
+                    <RefreshCw />
+                    Pedir correção
+                  </Button>
+                  {porFoto && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setMostrarTroca(true)}
+                    >
+                      <Camera />
+                      Trocar a foto
+                    </Button>
+                  )}
+                </div>
               )}
             </Cartao>
           </div>
@@ -338,6 +372,7 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
   const [direcao, setDirecao] = useState<Direcao>(null);
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+  const minhas = useMinhasRedacoes();
   useLiberarPrevias(fotos);
   const avaliadas = useAvancoCorrecao(etapa === Etapa.Corrigindo);
   const tituloRef = useRef<HTMLHeadingElement>(null);
@@ -358,9 +393,15 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
     setEtapa(nova);
   }
 
+  /** Confere o limite do dia antes de subir fotos que não poderiam ser enviadas. */
+  const chegouAoLimite = () =>
+    (minhas.data ? enviadasHoje(minhas.data) : 0) >= regrasRedacao.porDia;
+  const AVISO_LIMITE = `Você já enviou ${regrasRedacao.porDia} redações hoje. Amanhã tem mais! Guarde a sua folha e mande a foto amanhã.`;
+
   async function confirmarEnvio() {
-    setEnviando(true);
     setErroEnvio(null);
+    if (chegouAoLimite()) return setErroEnvio(AVISO_LIMITE);
+    setEnviando(true);
     let id: string;
     try {
       id = await enviarRedacaoFoto(
@@ -446,6 +487,12 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
                   <Camera />
                   Já escrevi: enviar a foto
                 </Button>
+                {chegouAoLimite() && (
+                  <p className="flex items-start gap-2 rounded-xl bg-mostarda/25 px-4 py-3 text-marrom">
+                    <AlertCircle className="mt-1 size-5 shrink-0" aria-hidden />
+                    {AVISO_LIMITE}
+                  </p>
+                )}
               </div>
             </div>
           </div>

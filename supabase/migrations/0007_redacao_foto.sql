@@ -13,20 +13,39 @@
 
 alter table redacoes
   add column fotos text[] not null default '{}',
-  add column trocas_fotos int not null default 0;
+  add column trocas_fotos int not null default 0,
+  -- Aviso da IA sobre a leitura (ex.: "duas palavras do 3º parágrafo ficaram difíceis de ler").
+  add column aviso_leitura text;
+
+-- Daqui em diante a redação é só por foto: o envio de texto digitado sai da API (as redações
+-- digitadas antigas continuam visíveis e podem ser corrigidas).
+revoke execute on function enviar_redacao(uuid, text) from authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Storage: bucket privado, cada estudante grava só na própria pasta
 -- ---------------------------------------------------------------------------
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('redacoes-fotos', 'redacoes-fotos', false, 6291456,
+values ('redacoes-fotos', 'redacoes-fotos', false, 3145728,
         array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do nothing;
 
+-- Fotos enviadas pelo estudante logado nas últimas 24 horas (freio contra abuso do bucket).
+create function fotos_enviadas_hoje() returns int
+language sql stable security definer set search_path = '' as $$
+  select count(*)::int
+    from storage.objects
+   where bucket_id = 'redacoes-fotos'
+     and (storage.foldername(name))[1] = auth.uid()::text
+     and created_at > now() - interval '1 day'
+$$;
+revoke all on function fotos_enviadas_hoje() from public, anon;
+grant execute on function fotos_enviadas_hoje() to authenticated;
+
 create policy redacoes_fotos_envio on storage.objects for insert to authenticated
   with check (bucket_id = 'redacoes-fotos'
-              and (storage.foldername(name))[1] = auth.uid()::text);
+              and (storage.foldername(name))[1] = auth.uid()::text
+              and public.fotos_enviadas_hoje() < 15);
 
 create policy redacoes_fotos_leitura on storage.objects for select to authenticated
   using (bucket_id = 'redacoes-fotos'
@@ -75,6 +94,8 @@ begin
   end if;
   if not fotos_validas(p_fotos) then raise exception 'fotos_invalidas'; end if;
 
+  -- Um envio por vez por estudante, para o limite diário não ser furado com envios em paralelo.
+  perform pg_advisory_xact_lock(hashtext('redacao_dia:' || auth.uid()::text));
   select count(*) into v_hoje
     from redacoes
    where estudante_id = auth.uid()
@@ -89,6 +110,7 @@ end
 $$;
 
 -- Foto ilegível ou errada: troca as fotos de uma redação ainda sem correção (até 3 vezes).
+-- Devolve só a tentativa gasta com a foto ruim: no máximo 4 + 3 chamadas à IA por redação.
 create function trocar_fotos_redacao(p_redacao uuid, p_fotos text[]) returns void
 language plpgsql security definer set search_path = public as $$
 declare
@@ -102,16 +124,22 @@ begin
   if r.trocas_fotos >= 3 then raise exception 'trocas_esgotadas'; end if;
   if not fotos_validas(p_fotos) then raise exception 'fotos_invalidas'; end if;
   update redacoes
-     set fotos = p_fotos, trocas_fotos = trocas_fotos + 1, tentativas_ia = 0
+     set fotos = p_fotos,
+         trocas_fotos = trocas_fotos + 1,
+         tentativas_ia = greatest(tentativas_ia - 1, 0),
+         aviso_leitura = null
    where id = r.id;
 end
 $$;
 
 -- Grava a transcrição feita pela IA e a correção (registrar_correcao_ia confere o segredo).
+-- p_fotos são as fotos corrigidas: se o estudante trocou as fotos no meio, nada é gravado.
 create function registrar_correcao_foto(
   p_segredo text,
   p_redacao uuid,
+  p_fotos text[],
   p_texto text,
+  p_aviso text,
   p_modelo text,
   p_competencias jsonb,
   p_trechos jsonb,
@@ -133,9 +161,15 @@ begin
   update redacoes
      set texto = v_texto,
          palavras = case when v_texto = '' then 0
-                         else coalesce(array_length(regexp_split_to_array(v_texto, '\s+'), 1), 0) end
-   where id = p_redacao and status = 'enviada' and cardinality(fotos) > 0;
-  if not found then raise exception 'ja_corrigida'; end if;
+                         else coalesce(array_length(regexp_split_to_array(v_texto, '\s+'), 1), 0) end,
+         aviso_leitura = nullif(left(btrim(coalesce(p_aviso, '')), 400), '')
+   where id = p_redacao and status = 'enviada' and fotos = p_fotos;
+  if not found then
+    if exists (select 1 from redacoes where id = p_redacao and status = 'enviada') then
+      raise exception 'fotos_trocadas';
+    end if;
+    raise exception 'ja_corrigida';
+  end if;
   return registrar_correcao_ia(p_segredo, p_redacao, p_modelo, p_competencias, p_trechos,
                                p_plano, p_tokens_entrada, p_tokens_saida);
 end
@@ -144,7 +178,7 @@ $$;
 revoke all on function fotos_validas(text[]) from public, anon, authenticated;
 revoke all on function enviar_redacao_foto(uuid, text[]) from public, anon;
 revoke all on function trocar_fotos_redacao(uuid, text[]) from public, anon;
-revoke all on function registrar_correcao_foto(text, uuid, text, text, jsonb, jsonb, jsonb, int, int) from public, anon;
+revoke all on function registrar_correcao_foto(text, uuid, text[], text, text, text, jsonb, jsonb, jsonb, int, int) from public, anon;
 grant execute on function enviar_redacao_foto(uuid, text[]) to authenticated;
 grant execute on function trocar_fotos_redacao(uuid, text[]) to authenticated;
-grant execute on function registrar_correcao_foto(text, uuid, text, text, jsonb, jsonb, jsonb, int, int) to authenticated;
+grant execute on function registrar_correcao_foto(text, uuid, text[], text, text, text, jsonb, jsonb, jsonb, int, int) to authenticated;

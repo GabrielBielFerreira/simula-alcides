@@ -359,15 +359,22 @@ export interface CorrecaoFotoIA extends CorrecaoIA {
   aviso: string;
 }
 
-/** Junta o texto em parágrafos limpos (um por linha, separados por linha em branco). */
+/** Junta as linhas da folha num parágrafo só, desfazendo a separação de sílabas do fim da linha. */
+const juntarLinhas = (s: string) =>
+  s
+    .replace(/(\p{L})-[ \t]*\n[ \t]*(\p{Ll})/gu, "$1$2")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * Parágrafos limpos, separados por linha em branco. Se o modelo separou os parágrafos com linha
+ * em branco, as quebras simples são só as linhas da folha (viram espaço); se não, cada quebra é
+ * um parágrafo.
+ */
 function limparTranscricao(bruto: unknown) {
-  return semDadosPessoais(String(bruto ?? ""))
-    .replace(/\r/g, "")
-    .split(/\n+/)
-    .map((p) => p.replace(/[ \t]+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n\n")
-    .slice(0, 8000);
+  const t = semDadosPessoais(String(bruto ?? "")).replace(/\r/g, "");
+  const partes = /\n[ \t]*\n/.test(t) ? t.split(/\n[ \t]*\n+/) : t.split("\n");
+  return partes.map(juntarLinhas).filter(Boolean).join("\n\n").slice(0, 8000);
 }
 
 export async function corrigirFotoComGemini(dados: {
@@ -390,7 +397,19 @@ export async function corrigirFotoComGemini(dados: {
       const aviso = texto(x?.aviso, 400);
       const transcricao = limparTranscricao(x?.transcricao);
       if (x?.legivel === false || transcricao.length < 20) throw new ErroIA("ilegivel", aviso);
-      return { ...normalizarCorrecao(json, transcricao), transcricao, aviso };
+      // Os trechos passam pela mesma limpeza da transcrição, para baterem com o texto guardado.
+      const bruto = json as { trechos?: unknown };
+      const trechos = Array.isArray(bruto.trechos)
+        ? bruto.trechos.map((t) => {
+            const y = t as { trecho?: unknown };
+            return { ...y, trecho: juntarLinhas(semDadosPessoais(String(y?.trecho ?? ""))) };
+          })
+        : [];
+      return {
+        ...normalizarCorrecao({ ...bruto, trechos }, transcricao),
+        transcricao,
+        aviso,
+      };
     },
   });
   return {
