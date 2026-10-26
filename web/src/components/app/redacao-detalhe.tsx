@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  Camera,
   Clock,
   Loader2,
   PenLine,
@@ -43,6 +44,7 @@ import {
 import { Cartao, Titulo } from "./shared";
 import { OpcaoMarcavel } from "./controles";
 import { Devolutiva, EtapasRedacao, SeloPrevia } from "./redacao-pecas";
+import { EnviarFoto, FotosDaFolha } from "./redacao-foto";
 import { useMinhasRedacoes, usePropostas } from "./redacao";
 
 /** Falha da correção logo depois do envio, para a tela da redação mostrar sem perguntar de novo. */
@@ -176,6 +178,11 @@ function RedacaoEnviada({ id, propostas }: { id: string; propostas: PropostaReal
           </div>
         }
       />
+      {r.fotos.length > 0 && (
+        <section className="cartao mt-6 p-5 md:p-6">
+          <FotosDaFolha fotos={r.fotos} />
+        </section>
+      )}
     </>
   );
 }
@@ -227,6 +234,7 @@ function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
                   </p>
                 ))}
             </div>
+            <FotosDaFolha fotos={redacao.fotos} className="mt-6 border-t border-linha pt-5" />
           </Cartao>
           <div className="space-y-4 xl:sticky xl:top-6">
             <Cartao>
@@ -270,7 +278,14 @@ function useAvancoCorrecao(ativo: boolean) {
 const Etapa = { Proposta: 0, Escrever: 1, Revisar: 2, Corrigindo: 3 } as const;
 type Etapa = (typeof Etapa)[keyof typeof Etapa];
 
-type Aviso = "curto" | "longo" | null;
+type Aviso = "curto" | "longo" | "duvida" | null;
+
+/** Texto que veio da foto: as fotos vão junto no envio; o aviso lembra de conferir. */
+interface LidoDaFoto {
+  fotos: string[];
+  duvidas: number;
+  aviso: string;
+}
 /** Avançar entra pela direita; voltar, pela esquerda. null: a 1ª etapa, que entra com a página. */
 type Direcao = "frente" | "tras" | null;
 
@@ -286,6 +301,7 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
   const [direcao, setDirecao] = useState<Direcao>(null);
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+  const [daFoto, setDaFoto] = useState<LidoDaFoto | null>(null);
   const avaliadas = useAvancoCorrecao(etapa === Etapa.Corrigindo);
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const etapasRef = useRef<HTMLDivElement>(null);
@@ -339,7 +355,9 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
         ? "curto"
         : linhas > regrasRedacao.maxLinhas
           ? "longo"
-          : null;
+          : texto.includes("[?]")
+            ? "duvida"
+            : null;
     setAviso(problema);
     if (problema) return setTentativasEnvio((n) => n + 1);
     setErroEnvio(null);
@@ -351,7 +369,7 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
     setErroEnvio(null);
     let id: string;
     try {
-      id = await enviarRedacao(proposta.id, texto);
+      id = await enviarRedacao(proposta.id, texto, daFoto?.fotos ?? []);
     } catch (e) {
       setEnviando(false);
       setErroEnvio(e instanceof Error ? e.message : "Não deu para enviar agora.");
@@ -446,10 +464,54 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
                 </Recolhivel>
               </section>
 
+              {!daFoto && (
+                <EnviarFoto
+                  aoLer={({ texto: lido, fotos, duvidas, aviso: avisoIA }) => {
+                    setTexto(lido);
+                    setAviso(null);
+                    setDaFoto({ fotos, duvidas, aviso: avisoIA });
+                    salvarRascunhoLocal(proposta.id, lido);
+                    toast.success("Pronto! A IA leu sua redação", {
+                      description: "Confira o texto com a sua folha antes de enviar.",
+                    });
+                  }}
+                />
+              )}
+
               <div>
                 <label htmlFor="texto-redacao" className="mb-2 block font-semibold">
                   Sua redação
                 </label>
+                {daFoto && (
+                  <div className="mb-3 rounded-xl bg-rosa/8 px-4 py-3 ring-1 ring-rosa/20">
+                    <p className="flex items-start gap-2 font-semibold">
+                      <Camera className="mt-0.5 size-5 shrink-0 text-rosa" aria-hidden />
+                      Texto lido da sua foto. Confira com a folha.
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Corrija só o que a IA leu errado
+                      {daFoto.duvidas > 0
+                        ? ` e troque os ${daFoto.duvidas === 1 ? "[?] pela palavra" : "[?] pelas palavras"} que ela não entendeu`
+                        : ""}
+                      . Os seus próprios erros devem ficar como estão: a correção é do que você
+                      escreveu.
+                    </p>
+                    {daFoto.aviso && (
+                      <p className="mt-1 text-sm text-muted-foreground">{daFoto.aviso}</p>
+                    )}
+                    <button
+                      type="button"
+                      className="mt-2 min-h-11 text-sm font-semibold text-rosa underline underline-offset-4"
+                      onClick={() => {
+                        setDaFoto(null);
+                        setTexto("");
+                        salvarRascunhoLocal(proposta.id, "");
+                      }}
+                    >
+                      Descartar e tirar outra foto
+                    </button>
+                  </div>
+                )}
                 <FolhaRedacao
                   valor={texto}
                   aoMudar={(v) => {
@@ -473,7 +535,9 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
                       <AlertCircle className="mt-1 size-5 shrink-0" aria-hidden />
                       {aviso === "curto"
                         ? `Escreva pelo menos ${regrasRedacao.minLinhas} linhas para enviar. No ENEM, textos com até ${regrasRedacao.minLinhas - 1} linhas recebem nota zero.`
-                        : `Seu texto passou de ${regrasRedacao.maxLinhas} linhas. No ENEM, o que passa da última linha não é lido. Que tal enxugar um parágrafo?`}
+                        : aviso === "duvida"
+                          ? "Ainda tem [?] no texto: são palavras que a IA não conseguiu ler. Troque cada uma pela palavra que está na sua folha."
+                          : `Seu texto passou de ${regrasRedacao.maxLinhas} linhas. No ENEM, o que passa da última linha não é lido. Que tal enxugar um parágrafo?`}
                     </p>
                   )}
                 </div>
@@ -517,6 +581,9 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
                     </p>
                   ))}
               </div>
+              {daFoto && (
+                <FotosDaFolha fotos={daFoto.fotos} className="mt-6 border-t border-linha pt-5" />
+              )}
             </Cartao>
             <div className="space-y-6 xl:sticky xl:top-6">
               <Cartao titulo="Confira">

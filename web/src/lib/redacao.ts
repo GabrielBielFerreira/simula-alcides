@@ -4,7 +4,13 @@
  */
 import type { Devolutiva, TextoMotivador, Trecho, PassoPlano } from "@/data/estudante";
 import { supabase } from "./supabase";
-import { MENSAGEM_FALHA, pedirCorrecao, type ResultadoCorrecao } from "./correcao-ia";
+import {
+  lerFotoRedacao,
+  MENSAGEM_FALHA,
+  pedirCorrecao,
+  type ResultadoCorrecao,
+  type ResultadoLeitura,
+} from "./correcao-ia";
 
 function falhou(error: { message: string } | null): asserts error is null {
   if (error) throw new Error(error.message);
@@ -55,6 +61,8 @@ export interface RedacaoCompleta extends RedacaoResumo {
   palavras: number;
   modelo: string | null;
   devolutiva: Devolutiva | null;
+  /** Fotos da folha (caminhos no Storage), quando a redação foi escrita à mão. */
+  fotos: string[];
 }
 
 interface LinhaCorrecao {
@@ -74,6 +82,7 @@ interface LinhaRedacao {
   created_at: string;
   texto?: string;
   palavras?: number;
+  fotos?: string[];
   proposta: { titulo: string } | null;
   correcoes: LinhaCorrecao[];
 }
@@ -112,7 +121,7 @@ export async function buscarRedacao(id: string): Promise<RedacaoCompleta | null>
   const { data, error } = await supabase
     .from("redacoes")
     .select(
-      "id, proposta_id, status, enviada_em, created_at, texto, palavras, proposta:propostas_redacao(titulo), correcoes:correcoes_redacao(nota_total, competencias, trechos, plano, modelo, created_at)",
+      "id, proposta_id, status, enviada_em, created_at, texto, palavras, fotos, proposta:propostas_redacao(titulo), correcoes:correcoes_redacao(nota_total, competencias, trechos, plano, modelo, created_at)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -125,6 +134,7 @@ export async function buscarRedacao(id: string): Promise<RedacaoCompleta | null>
     texto: r.texto ?? "",
     palavras: r.palavras ?? 0,
     modelo: c?.modelo ?? null,
+    fotos: r.fotos ?? [],
     devolutiva: c
       ? {
           competencias: c.competencias.map((x) => x.nota),
@@ -143,14 +153,22 @@ const ERROS_ENVIO: Record<string, string> = {
   texto_longo: "Seu texto passou do tamanho máximo. Enxugue um pouco e envie de novo.",
   proposta_inexistente: "Essa proposta não está mais disponível.",
   sem_login: "Sua sessão expirou. Entre de novo para enviar.",
+  fotos_invalidas: "Não achamos a foto da folha. Tire a foto de novo ou envie só o texto.",
 };
 
 /** Envia a redação; devolve o id. Lança com uma mensagem pronta para a tela. */
-export async function enviarRedacao(propostaId: string, texto: string): Promise<string> {
-  const { data, error } = await supabase.rpc("enviar_redacao", {
-    p_proposta: propostaId,
-    p_texto: texto,
-  });
+export async function enviarRedacao(
+  propostaId: string,
+  texto: string,
+  fotos: string[] = [],
+): Promise<string> {
+  const { data, error } = fotos.length
+    ? await supabase.rpc("enviar_redacao_com_fotos", {
+        p_proposta: propostaId,
+        p_texto: texto,
+        p_fotos: fotos,
+      })
+    : await supabase.rpc("enviar_redacao", { p_proposta: propostaId, p_texto: texto });
   if (error) {
     const chave = Object.keys(ERROS_ENVIO).find((k) => error.message.includes(k));
     throw new Error(
@@ -173,6 +191,76 @@ export async function corrigirRedacao(redacaoId: string): Promise<string | null>
     return MENSAGEM_FALHA.indisponivel;
   }
   return r.ok ? null : MENSAGEM_FALHA[r.motivo];
+}
+
+/* ---------- Redação escrita à mão (foto da folha) ---------- */
+
+const BUCKET_FOTOS = "redacoes-fotos";
+
+/** Reduz a foto (lado maior até 2000 px, JPEG) para enviar rápido pelo 4G. */
+async function reduzirFoto(arquivo: File): Promise<Blob> {
+  const url = URL.createObjectURL(arquivo);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const escala = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * escala);
+    canvas.height = Math.round(img.naturalHeight * escala);
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, "image/jpeg", 0.85));
+    if (!blob) throw new Error("sem blob");
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Envia uma foto da folha para a pasta do estudante; devolve o caminho no Storage. */
+export async function enviarFotoRedacao(arquivo: File): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const uid = data.session?.user.id;
+  if (!uid) throw new Error(ERROS_ENVIO.sem_login);
+  let corpo: Blob;
+  try {
+    corpo = await reduzirFoto(arquivo);
+  } catch {
+    throw new Error("Não deu para abrir essa imagem. Tire a foto de novo ou use outra.");
+  }
+  const caminho = `${uid}/${crypto.randomUUID()}.jpg`;
+  const { error } = await supabase.storage
+    .from(BUCKET_FOTOS)
+    .upload(caminho, corpo, { contentType: "image/jpeg" });
+  if (error) {
+    console.error(error);
+    throw new Error("A foto não subiu. Confira a internet e tente de novo.");
+  }
+  return caminho;
+}
+
+/** Pede à IA a transcrição das fotos já enviadas. */
+export async function lerFotosRedacao(fotos: string[]): Promise<ResultadoLeitura> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return { ok: false, mensagem: MENSAGEM_FALHA.sem_login };
+  try {
+    return await lerFotoRedacao({ data: { token, fotos } });
+  } catch (e) {
+    console.error(e);
+    return {
+      ok: false,
+      mensagem: "A IA não conseguiu ler a foto agora. Tente de novo em alguns minutos.",
+    };
+  }
+}
+
+/** Links temporários (1 hora) para mostrar as fotos da folha. */
+export async function linksDasFotos(fotos: string[]): Promise<string[]> {
+  if (!fotos.length) return [];
+  const { data, error } = await supabase.storage.from(BUCKET_FOTOS).createSignedUrls(fotos, 3600);
+  falhou(error);
+  return (data ?? []).map((d) => d.signedUrl).filter((u): u is string => Boolean(u));
 }
 
 /* ---------- Rascunho neste aparelho ---------- */

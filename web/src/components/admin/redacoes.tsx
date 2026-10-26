@@ -4,6 +4,7 @@
  */
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { FotosDaFolha } from "@/components/app/redacao-foto";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Clock, PenLine } from "lucide-react";
 import { Carregando, EstadoVazio } from "@/components/ds";
@@ -97,6 +98,7 @@ function DetalheRedacao({ id }: { id: string }) {
             ))}
         </div>
       </div>
+      <FotosDaFolha fotos={data.fotos} />
       {data.modelo && (
         <p className="text-sm text-muted-foreground">
           Nota estimada pela IA ({data.modelo}). Não é a nota oficial do ENEM.
