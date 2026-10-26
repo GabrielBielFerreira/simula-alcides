@@ -7,13 +7,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronDown,
   Camera,
   Clock,
   Loader2,
   PenLine,
   RefreshCw,
-  Save,
   Send,
   ShieldCheck,
   Sparkles,
@@ -23,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import {
   checklistRevisao,
   competenciasCurtas,
-  contarRedacao,
   estruturaRedacao,
   instrucaoProposta,
   mensagensCorrecao,
@@ -35,20 +32,20 @@ import { Carregando, EstadoVazio, Preenchimento } from "@/components/ds";
 import {
   buscarRedacao,
   corrigirRedacao,
-  enviarRedacao,
-  lerRascunho,
-  salvarRascunhoLocal,
+  enviarRedacaoFoto,
+  trocarFotosRedacao,
+  type FalhaCorrecao,
   type PropostaReal,
   type RedacaoCompleta,
 } from "@/lib/redacao";
 import { Cartao, Titulo } from "./shared";
 import { OpcaoMarcavel } from "./controles";
 import { Devolutiva, EtapasRedacao, SeloPrevia } from "./redacao-pecas";
-import { EnviarFoto, FotosDaFolha } from "./redacao-foto";
+import { EscolherFotos, FotosDaFolha, useLiberarPrevias, type FotoEscolhida } from "./redacao-foto";
 import { useMinhasRedacoes, usePropostas } from "./redacao";
 
 /** Falha da correção logo depois do envio, para a tela da redação mostrar sem perguntar de novo. */
-const falhasRecentes = new Map<string, string>();
+const falhasRecentes = new Map<string, FalhaCorrecao>();
 
 const dataHora = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", {
@@ -143,6 +140,7 @@ function RedacaoEnviada({ id, propostas }: { id: string; propostas: PropostaReal
       <Devolutiva
         dados={r.devolutiva}
         texto={r.texto}
+        fotos={r.fotos}
         anterior={
           anterior?.competencias
             ? {
@@ -178,21 +176,22 @@ function RedacaoEnviada({ id, propostas }: { id: string; propostas: PropostaReal
           </div>
         }
       />
-      {r.fotos.length > 0 && (
-        <section className="cartao mt-6 p-5 md:p-6">
-          <FotosDaFolha fotos={r.fotos} />
-        </section>
-      )}
     </>
   );
 }
 
-/** Redação enviada sem correção (a IA falhou ou ficou sem cota): permite pedir de novo. */
+/** Redação enviada sem correção (a IA falhou, ficou sem cota ou não leu a foto): permite pedir de novo. */
 function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
   const cliente = useQueryClient();
-  const [falha, setFalha] = useState<string | null>(() => falhasRecentes.get(redacao.id) ?? null);
+  const [falha, setFalha] = useState<FalhaCorrecao | null>(
+    () => falhasRecentes.get(redacao.id) ?? null,
+  );
   const [corrigindo, setCorrigindo] = useState(false);
+  const [novas, setNovas] = useState<FotoEscolhida[]>([]);
+  const [trocando, setTrocando] = useState(false);
+  useLiberarPrevias(novas);
   const avaliadas = useAvancoCorrecao(corrigindo);
+  const porFoto = redacao.fotos.length > 0;
 
   async function pedir() {
     setCorrigindo(true);
@@ -208,6 +207,26 @@ function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
     ]);
   }
 
+  async function trocarEPedir() {
+    setTrocando(true);
+    try {
+      await trocarFotosRedacao(
+        redacao.id,
+        novas.map((f) => f.arquivo),
+      );
+    } catch (e) {
+      setTrocando(false);
+      return setFalha({
+        mensagem: e instanceof Error ? e.message : "A foto não subiu. Tente de novo.",
+        ilegivel: true,
+      });
+    }
+    setTrocando(false);
+    setNovas([]);
+    await cliente.invalidateQueries({ queryKey: ["redacao", redacao.id] });
+    await pedir();
+  }
+
   return (
     <>
       <Titulo sobretitulo={`Enviada em ${dataHora(redacao.enviadaEm)}`} titulo={redacao.tema} />
@@ -218,37 +237,59 @@ function AguardandoCorrecao({ redacao }: { redacao: RedacaoCompleta }) {
           avaliadas={avaliadas}
         />
       ) : (
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <Cartao>
-            <h2 className="text-[22px] font-bold">Seu texto</h2>
-            <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-              {redacao.palavras} palavras
-            </p>
-            <div className="mt-5 space-y-4 text-[17px] leading-[1.8]">
-              {redacao.texto
-                .split("\n")
-                .filter((p) => p.trim())
-                .map((p, i) => (
-                  <p key={i} className="indent-8">
-                    {p}
-                  </p>
-                ))}
-            </div>
-            <FotosDaFolha fotos={redacao.fotos} className="mt-6 border-t border-linha pt-5" />
+            {porFoto ? (
+              <FotosDaFolha fotos={redacao.fotos} titulo="Sua folha" />
+            ) : (
+              <>
+                <h2 className="text-[22px] font-bold">Seu texto</h2>
+                <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+                  {redacao.palavras} palavras
+                </p>
+                <div className="mt-5 space-y-4 text-[17px] leading-[1.8]">
+                  {redacao.texto
+                    .split("\n")
+                    .filter((p) => p.trim())
+                    .map((p, i) => (
+                      <p key={i} className="indent-8">
+                        {p}
+                      </p>
+                    ))}
+                </div>
+              </>
+            )}
           </Cartao>
           <div className="space-y-4 xl:sticky xl:top-6">
             <Cartao>
               <p className="flex items-center gap-2 font-semibold">
-                <Clock className="size-5 text-rosa" aria-hidden />
-                Aguardando correção
+                {falha?.ilegivel ? (
+                  <Camera className="size-5 text-rosa" aria-hidden />
+                ) : (
+                  <Clock className="size-5 text-rosa" aria-hidden />
+                )}
+                {falha?.ilegivel ? "Precisamos de outra foto" : "Aguardando correção"}
               </p>
               <p className="mt-2 text-muted-foreground" aria-live="polite">
-                {falha ?? "Sua redação está guardada. Toque abaixo para pedir a correção da IA."}
+                {falha?.mensagem ??
+                  "Sua redação está guardada. Toque abaixo para pedir a correção da IA."}
               </p>
-              <Button className="mt-4 w-full" onClick={pedir}>
-                <RefreshCw />
-                Pedir correção
-              </Button>
+              {falha?.ilegivel && porFoto ? (
+                <div className="mt-4 space-y-4">
+                  <EscolherFotos fotos={novas} aoMudar={setNovas} desativado={trocando} />
+                  {novas.length > 0 && (
+                    <Button className="w-full" onClick={trocarEPedir} disabled={trocando}>
+                      {trocando ? <Loader2 className="animate-spin" /> : <Send />}
+                      {trocando ? "Enviando a foto…" : "Enviar nova foto"}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Button className="mt-4 w-full" onClick={pedir}>
+                  <RefreshCw />
+                  Pedir correção
+                </Button>
+              )}
             </Cartao>
           </div>
         </div>
@@ -273,56 +314,35 @@ function useAvancoCorrecao(ativo: boolean) {
   return avaliadas;
 }
 
-/* ---------- Editor: Proposta → Escrever → Revisar → Corrigindo → Devolutiva ---------- */
+/* ---------- Envio: Proposta → Foto → Revisar → Corrigindo → Devolutiva ---------- */
 
-const Etapa = { Proposta: 0, Escrever: 1, Revisar: 2, Corrigindo: 3 } as const;
+const Etapa = { Proposta: 0, Foto: 1, Revisar: 2, Corrigindo: 3 } as const;
 type Etapa = (typeof Etapa)[keyof typeof Etapa];
 
-type Aviso = "curto" | "longo" | "duvida" | null;
-
-/** Texto que veio da foto: as fotos vão junto no envio; o aviso lembra de conferir. */
-interface LidoDaFoto {
-  fotos: string[];
-  duvidas: number;
-  aviso: string;
-}
 /** Avançar entra pela direita; voltar, pela esquerda. null: a 1ª etapa, que entra com a página. */
 type Direcao = "frente" | "tras" | null;
+
+/** Dicas para a IA conseguir ler a letra. */
+const dicasFoto = [
+  "A folha inteira aparece na foto, sem cortar as bordas.",
+  "Celular de cima, reto sobre a folha.",
+  "Boa luz, sem sombra da mão ou do celular.",
+  "Caneta escura e letra legível. Usou o verso? Mande 2 fotos.",
+];
 
 function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
   const navigate = useNavigate();
   const cliente = useQueryClient();
   const [etapa, setEtapa] = useState<Etapa>(Etapa.Proposta);
-  const [texto, setTexto] = useState("");
-  const [temRascunho, setTemRascunho] = useState(false);
-  const [aviso, setAviso] = useState<Aviso>(null);
-  // Cada tentativa de envio fora do limite faz o aviso surgir de novo.
-  const [tentativasEnvio, setTentativasEnvio] = useState(0);
+  const [fotos, setFotos] = useState<FotoEscolhida[]>([]);
   const [direcao, setDirecao] = useState<Direcao>(null);
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
-  const [daFoto, setDaFoto] = useState<LidoDaFoto | null>(null);
+  useLiberarPrevias(fotos);
   const avaliadas = useAvancoCorrecao(etapa === Etapa.Corrigindo);
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const etapasRef = useRef<HTMLDivElement>(null);
   const etapaAnterior = useRef(etapa);
-  const { linhas, palavras } = contarRedacao(texto);
-
-  // Rascunho salvo neste aparelho (só no cliente).
-  useEffect(() => {
-    const salvo = lerRascunho(proposta.id);
-    if (salvo) {
-      setTexto(salvo);
-      setTemRascunho(true);
-    }
-  }, [proposta.id]);
-
-  // Salva sozinho enquanto o estudante escreve (1 segundo depois de parar).
-  useEffect(() => {
-    if (etapa !== Etapa.Escrever) return;
-    const t = setTimeout(() => salvarRascunhoLocal(proposta.id, texto), 1000);
-    return () => clearTimeout(t);
-  }, [texto, etapa, proposta.id]);
 
   // A cada troca de etapa: volta ao topo (ou às etapas) e leva o foco ao título da etapa.
   useEffect(() => {
@@ -338,44 +358,20 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
     setEtapa(nova);
   }
 
-  function salvarRascunho() {
-    if (!salvarRascunhoLocal(proposta.id, texto)) {
-      toast.error("Não deu para salvar neste aparelho", {
-        description: "O navegador bloqueou o armazenamento. Copie seu texto para não perder.",
-      });
-      return;
-    }
-    setTemRascunho(true);
-    toast.success("Rascunho salvo", { description: "Ele fica guardado neste aparelho." });
-  }
-
-  function enviarParaCorrecao() {
-    const problema: Aviso =
-      linhas < regrasRedacao.minLinhas
-        ? "curto"
-        : linhas > regrasRedacao.maxLinhas
-          ? "longo"
-          : texto.includes("[?]")
-            ? "duvida"
-            : null;
-    setAviso(problema);
-    if (problema) return setTentativasEnvio((n) => n + 1);
-    setErroEnvio(null);
-    irPara(Etapa.Revisar);
-  }
-
   async function confirmarEnvio() {
     setEnviando(true);
     setErroEnvio(null);
     let id: string;
     try {
-      id = await enviarRedacao(proposta.id, texto, daFoto?.fotos ?? []);
+      id = await enviarRedacaoFoto(
+        proposta.id,
+        fotos.map((f) => f.arquivo),
+      );
     } catch (e) {
       setEnviando(false);
       setErroEnvio(e instanceof Error ? e.message : "Não deu para enviar agora.");
       return;
     }
-    salvarRascunhoLocal(proposta.id, "");
     irPara(Etapa.Corrigindo);
     const falha = await corrigirRedacao(id);
     if (falha) falhasRecentes.set(id, falha);
@@ -426,6 +422,9 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
                   <TextosMotivadores textos={proposta.textos} />
                 </Cartao>
               )}
+              <Cartao titulo="Estrutura sugerida">
+                <EstruturaSugerida />
+              </Cartao>
             </div>
             <div className="space-y-6 xl:sticky xl:top-6">
               <Cartao titulo="Regras da folha">
@@ -438,170 +437,93 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
                   ))}
                 </ul>
               </Cartao>
-              <Button className="w-full" size="lg" onClick={() => irPara(Etapa.Escrever)}>
-                <PenLine />
-                {temRascunho ? "Continuar rascunho" : "Começar a escrever"}
-              </Button>
+              <div className="space-y-3">
+                <p className="flex items-start gap-2 text-muted-foreground">
+                  <PenLine className="mt-1 size-5 shrink-0" aria-hidden />
+                  Escreva à mão, numa folha pautada. Quando terminar, volte aqui e tire a foto.
+                </p>
+                <Button className="w-full" size="lg" onClick={() => irPara(Etapa.Foto)}>
+                  <Camera />
+                  Já escrevi: enviar a foto
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
-        {etapa === Etapa.Escrever && (
-          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="min-w-0 space-y-5">
-              {tituloEtapa("Escreva sua redação")}
-              <section className="cartao p-5 md:p-6" aria-label="Tema e textos motivadores">
-                <p className="text-sm font-semibold text-muted-foreground">Tema</p>
-                <p className="mt-1 font-display text-xl font-bold leading-snug">{proposta.tema}</p>
-                {proposta.textos.length > 0 && (
-                  <Recolhivel titulo={`Textos motivadores (${proposta.textos.length})`}>
-                    <TextosMotivadores textos={proposta.textos} />
-                  </Recolhivel>
-                )}
-                {/* No celular e no notebook pequeno, a estrutura fica recolhida aqui; no desktop, ao lado. */}
-                <Recolhivel titulo="Estrutura sugerida" className="xl:hidden">
-                  <EstruturaSugerida />
-                </Recolhivel>
-              </section>
-
-              {!daFoto && (
-                <EnviarFoto
-                  aoLer={({ texto: lido, fotos, duvidas, aviso: avisoIA }) => {
-                    setTexto(lido);
-                    setAviso(null);
-                    setDaFoto({ fotos, duvidas, aviso: avisoIA });
-                    salvarRascunhoLocal(proposta.id, lido);
-                    toast.success("Pronto! A IA leu sua redação", {
-                      description: "Confira o texto com a sua folha antes de enviar.",
-                    });
-                  }}
-                />
-              )}
-
-              <div>
-                <label htmlFor="texto-redacao" className="mb-2 block font-semibold">
-                  Sua redação
-                </label>
-                {daFoto && (
-                  <div className="mb-3 rounded-xl bg-rosa/8 px-4 py-3 ring-1 ring-rosa/20">
-                    <p className="flex items-start gap-2 font-semibold">
-                      <Camera className="mt-0.5 size-5 shrink-0 text-rosa" aria-hidden />
-                      Texto lido da sua foto. Confira com a folha.
-                    </p>
-                    <p className="mt-1 text-sm">
-                      Corrija só o que a IA leu errado
-                      {daFoto.duvidas > 0
-                        ? ` e troque os ${daFoto.duvidas === 1 ? "[?] pela palavra" : "[?] pelas palavras"} que ela não entendeu`
-                        : ""}
-                      . Os seus próprios erros devem ficar como estão: a correção é do que você
-                      escreveu.
-                    </p>
-                    {daFoto.aviso && (
-                      <p className="mt-1 text-sm text-muted-foreground">{daFoto.aviso}</p>
-                    )}
-                    <button
-                      type="button"
-                      className="mt-2 min-h-11 text-sm font-semibold text-rosa underline underline-offset-4"
-                      onClick={() => {
-                        setDaFoto(null);
-                        setTexto("");
-                        salvarRascunhoLocal(proposta.id, "");
-                      }}
-                    >
-                      Descartar e tirar outra foto
-                    </button>
-                  </div>
-                )}
-                <FolhaRedacao
-                  valor={texto}
-                  aoMudar={(v) => {
-                    setTexto(v);
-                    if (aviso) setAviso(null);
-                  }}
-                  invalido={aviso !== null}
-                />
-                <Contador linhas={linhas} palavras={palavras} />
-                <p className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
-                  <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />O rascunho fica
-                  salvo neste aparelho. Não escreva seu nome nem dados pessoais: o texto é lido por
-                  uma IA do Google (Gemini).
-                </p>
-                <div aria-live="polite">
-                  {aviso && (
-                    <p
-                      key={tentativasEnvio}
-                      className="anima-surgir motion-reduce:animate-none mt-3 flex origin-top items-start gap-2 rounded-xl bg-mostarda/25 px-4 py-3 text-marrom"
-                    >
-                      <AlertCircle className="mt-1 size-5 shrink-0" aria-hidden />
-                      {aviso === "curto"
-                        ? `Escreva pelo menos ${regrasRedacao.minLinhas} linhas para enviar. No ENEM, textos com até ${regrasRedacao.minLinhas - 1} linhas recebem nota zero.`
-                        : aviso === "duvida"
-                          ? "Ainda tem [?] no texto: são palavras que a IA não conseguiu ler. Troque cada uma pela palavra que está na sua folha."
-                          : `Seu texto passou de ${regrasRedacao.maxLinhas} linhas. No ENEM, o que passa da última linha não é lido. Que tal enxugar um parágrafo?`}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <Button variant="outline" onClick={salvarRascunho}>
-                  <Save />
-                  Salvar rascunho
+        {etapa === Etapa.Foto && (
+          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <Cartao>
+              {tituloEtapa("Tire a foto da sua redação")}
+              <p className="mt-1 mb-5 text-muted-foreground">
+                A IA lê a sua letra direto da foto e corrige pelas 5 competências do ENEM.
+              </p>
+              <EscolherFotos fotos={fotos} aoMudar={setFotos} />
+              <p className="mt-5 flex items-start gap-2 text-sm text-muted-foreground">
+                <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
+                Não escreva seu nome na folha: a foto é lida por uma IA do Google (Gemini) e fica
+                guardada só para você e a coordenação do seu Compaz.
+              </p>
+            </Cartao>
+            <div className="space-y-6 xl:sticky xl:top-6">
+              <Cartao titulo="Para a IA ler bem">
+                <ul className="space-y-3">
+                  {dicasFoto.map((d) => (
+                    <li key={d} className="flex gap-3">
+                      <Check className="mt-1 size-5 shrink-0 text-laranja-acao" aria-hidden />
+                      {d}
+                    </li>
+                  ))}
+                </ul>
+              </Cartao>
+              <div className="space-y-3">
+                <Button
+                  className="w-full"
+                  onClick={() => irPara(Etapa.Revisar)}
+                  disabled={fotos.length === 0}
+                >
+                  Continuar
+                  <ArrowRight />
                 </Button>
-                <Button onClick={enviarParaCorrecao}>
-                  <Send />
-                  Enviar para correção
+                <Button variant="outline" className="w-full" onClick={() => irPara(Etapa.Proposta)}>
+                  <ArrowLeft />
+                  Ver a proposta de novo
                 </Button>
               </div>
             </div>
-
-            <Cartao
-              titulo="Estrutura sugerida"
-              className="hidden xl:sticky xl:top-6 xl:mt-12 xl:block"
-            >
-              <EstruturaSugerida />
-            </Cartao>
           </div>
         )}
 
         {etapa === Etapa.Revisar && (
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
             <Cartao>
-              {tituloEtapa("Revise antes de enviar")}
-              <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-                {linhas} de {regrasRedacao.maxLinhas} linhas · {palavras} palavras
+              {tituloEtapa("Confira antes de enviar")}
+              <p className="mt-1 mb-5 text-muted-foreground">
+                Dá para ler tudo na foto? Se não, volte e tire outra.
               </p>
-              <div className="mt-5 space-y-4 text-[17px] leading-[1.8]">
-                {texto
-                  .split("\n")
-                  .filter((p) => p.trim())
-                  .map((p, i) => (
-                    <p key={i} className="indent-8">
-                      {p}
-                    </p>
-                  ))}
-              </div>
-              {daFoto && (
-                <FotosDaFolha fotos={daFoto.fotos} className="mt-6 border-t border-linha pt-5" />
-              )}
+              <EscolherFotos fotos={fotos} aoMudar={setFotos} desativado />
             </Cartao>
             <div className="space-y-6 xl:sticky xl:top-6">
               <Cartao titulo="Confira">
                 <ChecklistRevisao />
               </Cartao>
               <div className="space-y-3">
-                <Button className="w-full" onClick={confirmarEnvio} disabled={enviando}>
+                <Button
+                  className="w-full"
+                  onClick={confirmarEnvio}
+                  disabled={enviando || fotos.length === 0}
+                >
                   {enviando ? <Loader2 className="animate-spin" /> : <Send />}
-                  {enviando ? "Enviando…" : "Confirmar envio"}
+                  {enviando ? "Enviando a foto…" : "Enviar para correção"}
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => irPara(Etapa.Escrever)}
+                  onClick={() => irPara(Etapa.Foto)}
                   disabled={enviando}
                 >
                   <ArrowLeft />
-                  Voltar e editar
+                  Trocar a foto
                 </Button>
                 <div aria-live="polite">
                   {erroEnvio && (
@@ -612,8 +534,8 @@ function EditorRedacao({ proposta }: { proposta: PropostaReal }) {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Depois de enviar, o texto não muda mais. A devolutiva costuma chegar em menos de
-                  um minuto. Você pode enviar até {regrasRedacao.porDia} redações por dia.
+                  A devolutiva costuma chegar em menos de um minuto. Você pode enviar até{" "}
+                  {regrasRedacao.porDia} redações por dia.
                 </p>
               </div>
             </div>
@@ -651,7 +573,7 @@ function Corrigindo({
       </span>
       {titulo("Corrigindo sua redação")}
       <p className="mt-2 text-muted-foreground">
-        A IA está lendo seu texto e estimando cada uma das {total} competências do ENEM.
+        A IA está lendo sua redação e estimando cada uma das {total} competências do ENEM.
       </p>
       <div className="mt-6 text-left">
         <div className="mb-2 flex items-baseline justify-between gap-3 text-sm">
@@ -728,39 +650,6 @@ function Corrigindo({
 
 /* ---------- Peças do editor ---------- */
 
-/** Bloco recolhível dentro do cartão do tema (textos motivadores, estrutura). */
-function Recolhivel({
-  titulo,
-  children,
-  className,
-}: {
-  titulo: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  // O conteúdo monta de novo a cada abertura, para o fade curto tocar sempre.
-  const [aberturas, setAberturas] = useState(0);
-  return (
-    <details
-      className={cn("group mt-4 border-t border-linha pt-2", className)}
-      onToggle={(e) => {
-        if (e.currentTarget.open) setAberturas((n) => n + 1);
-      }}
-    >
-      <summary className="-mx-2 flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-2 font-semibold hover:bg-creme/60 [&::-webkit-details-marker]:hidden">
-        {titulo}
-        <ChevronDown
-          className="size-5 shrink-0 transition-transform group-open:rotate-180"
-          aria-hidden
-        />
-      </summary>
-      <div key={aberturas} className="anima-aparecer motion-reduce:animate-none mt-3">
-        {children}
-      </div>
-    </details>
-  );
-}
-
 function EstruturaSugerida() {
   return (
     <ol className="space-y-4">
@@ -796,80 +685,6 @@ function TextosMotivadores({ textos }: { textos: TextoMotivador[] }) {
         </li>
       ))}
     </ol>
-  );
-}
-
-/** Área de texto com pauta, como a folha de redação. */
-function FolhaRedacao({
-  valor,
-  aoMudar,
-  invalido,
-}: {
-  valor: string;
-  aoMudar: (v: string) => void;
-  invalido: boolean;
-}) {
-  const altura = 32; // altura de cada linha da pauta, em px
-  return (
-    <textarea
-      id="texto-redacao"
-      value={valor}
-      onChange={(e) => aoMudar(e.target.value)}
-      aria-describedby="contador-redacao"
-      aria-invalid={invalido}
-      rows={14}
-      spellCheck
-      lang="pt-BR"
-      placeholder="Comece pela introdução: apresente o tema e a sua tese."
-      className={cn(
-        "block min-h-[28rem] w-full resize-y rounded-2xl border-2 bg-card px-4 py-2 text-[17px] text-marrom placeholder:text-muted-foreground/80 focus-visible:outline-3 focus-visible:outline-laranja-acao md:px-6",
-        invalido ? "border-mostarda" : "border-borda-controle",
-      )}
-      style={{
-        lineHeight: `${altura}px`,
-        backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${altura - 1}px, var(--linha) ${altura - 1}px, var(--linha) ${altura}px)`,
-        backgroundPosition: "0 8px",
-        backgroundAttachment: "local",
-      }}
-    />
-  );
-}
-
-function Contador({ linhas, palavras }: { linhas: number; palavras: number }) {
-  const { maxLinhas, minLinhas } = regrasRedacao;
-  const passou = linhas > maxLinhas;
-  return (
-    <div id="contador-redacao" className="mt-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        {/* Números com largura reservada (alinhados à direita): o texto ao lado não pula. */}
-        <p className="tabular-nums">
-          <span className="font-semibold">
-            <span className="inline-block min-w-[2ch] text-right">{linhas}</span> de {maxLinhas}{" "}
-            linhas
-          </span>
-          <span className="text-muted-foreground">
-            {" "}
-            · <span className="inline-block min-w-[3ch] text-right">{palavras}</span> palavras
-          </span>
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Mínimo de {minLinhas} linhas · contagem aproximada
-        </p>
-      </div>
-      {/* A barra desliza até o novo valor (transform); a marca do mínimo fica por cima. */}
-      <div className="relative mt-2" aria-hidden>
-        <div className="h-2 overflow-hidden rounded-full bg-creme ring-1 ring-linha">
-          <Preenchimento
-            fracao={linhas / maxLinhas}
-            className={cn("rounded-full", passou ? "bg-mostarda" : "bg-rosa")}
-          />
-        </div>
-        <span
-          className="absolute -top-1 h-4 w-0.5 rounded-full bg-marrom/40"
-          style={{ left: `${(minLinhas / maxLinhas) * 100}%` }}
-        />
-      </div>
-    </div>
   );
 }
 

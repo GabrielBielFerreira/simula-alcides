@@ -1,24 +1,19 @@
--- Simula Alcides: redação escrita à mão, enviada por foto.
+-- Simula Alcides: redação escrita à mão, enviada só por foto.
 --
--- * O estudante tira foto da folha; o navegador envia a imagem (já reduzida) para o bucket
---   privado redacoes-fotos, na pasta com o próprio id: <uid>/<arquivo>.jpg.
--- * O servidor do site reserva uma leitura (reservar_transcricao, limite diário), baixa as
---   fotos com a sessão do estudante e pede ao Gemini a transcrição. O estudante confere o
---   texto e envia pelo enviar_redacao_com_fotos, que guarda as fotos junto da redação.
--- * Quem vê a redação (o próprio estudante, a coordenação do polo, administração) vê as fotos.
+-- * O estudante escreve na folha, tira foto e o navegador envia a imagem (já reduzida) para o
+--   bucket privado redacoes-fotos, na pasta com o próprio id: <uid>/<arquivo>.jpg.
+-- * enviar_redacao_foto cria a redação com as fotos (mesmo limite diário do enviar_redacao).
+-- * O servidor do site reserva a correção (reservar_correcao), baixa as fotos com a sessão do
+--   estudante e manda as imagens ao Gemini, que lê a letra e corrige. registrar_correcao_foto
+--   grava a transcrição da IA como texto da redação e a correção (mesmo segredo do servidor).
+-- * Foto ilegível: o estudante troca as fotos da mesma redação (trocar_fotos_redacao), sem gastar
+--   outra redação do dia.
+-- * Quem vê a redação (o próprio estudante, a coordenação do polo, administração, professores)
+--   vê as fotos.
 
 alter table redacoes
-  add column fotos text[] not null default '{}';
-
-create table transcricoes_redacao (
-  id uuid primary key default gen_random_uuid(),
-  estudante_id uuid not null references perfis (id) on delete cascade,
-  fotos int not null default 1,
-  created_at timestamptz not null default now()
-);
-create index transcricoes_redacao_estudante on transcricoes_redacao (estudante_id, created_at desc);
-alter table transcricoes_redacao enable row level security;
--- Sem políticas: só as funções abaixo (security definer) mexem nela.
+  add column fotos text[] not null default '{}',
+  add column trocas_fotos int not null default 0;
 
 -- ---------------------------------------------------------------------------
 -- Storage: bucket privado, cada estudante grava só na própria pasta
@@ -45,56 +40,111 @@ create policy redacoes_fotos_leitura on storage.objects for select to authentica
 -- Funções
 -- ---------------------------------------------------------------------------
 
-create function limite_transcricoes_dia() returns int
-language sql immutable as $$ select 8 $$;
-
--- Reserva uma leitura de foto pela IA; devolve o id do estudante (dono da pasta das fotos).
-create function reservar_transcricao(p_fotos int) returns uuid
-language plpgsql security definer set search_path = public as $$
+-- Confere que as fotos são do estudante logado e já estão no bucket.
+create function fotos_validas(p_fotos text[]) returns boolean
+language plpgsql stable security definer set search_path = public as $$
 declare
-  v_hoje int;
-begin
-  if auth.uid() is null or not exists (select 1 from perfis where id = auth.uid()) then
-    raise exception 'sem_login';
-  end if;
-  if p_fotos is null or p_fotos < 1 or p_fotos > 3 then raise exception 'fotos_invalidas'; end if;
-  select count(*) into v_hoje
-    from transcricoes_redacao
-   where estudante_id = auth.uid()
-     and created_at >= (date_trunc('day', now() at time zone 'America/Recife') at time zone 'America/Recife');
-  if v_hoje >= limite_transcricoes_dia() then raise exception 'limite_transcricao'; end if;
-  insert into transcricoes_redacao (estudante_id, fotos) values (auth.uid(), p_fotos);
-  return auth.uid();
-end
-$$;
-
--- Envia a redação (mesmas regras do enviar_redacao) e guarda as fotos da folha.
-create function enviar_redacao_com_fotos(p_proposta uuid, p_texto text, p_fotos text[])
-returns uuid
-language plpgsql security definer set search_path = public as $$
-declare
-  v_fotos text[] := coalesce(p_fotos, '{}');
-  v_id uuid;
   f text;
 begin
-  if cardinality(v_fotos) > 3 then raise exception 'fotos_invalidas'; end if;
-  foreach f in array v_fotos loop
+  if p_fotos is null or cardinality(p_fotos) < 1 or cardinality(p_fotos) > 3 then
+    return false;
+  end if;
+  foreach f in array p_fotos loop
     if f is null
        or split_part(f, '/', 1) <> auth.uid()::text
        or not exists (select 1 from storage.objects o
                        where o.bucket_id = 'redacoes-fotos' and o.name = f) then
-      raise exception 'fotos_invalidas';
+      return false;
     end if;
   end loop;
-  v_id := enviar_redacao(p_proposta, p_texto);
-  update redacoes set fotos = v_fotos where id = v_id;
+  return true;
+end
+$$;
+
+create function enviar_redacao_foto(p_proposta uuid, p_fotos text[]) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  v_hoje int;
+  v_id uuid;
+begin
+  if auth.uid() is null or not exists (select 1 from perfis where id = auth.uid()) then
+    raise exception 'sem_login';
+  end if;
+  if not exists (select 1 from propostas_redacao where id = p_proposta and ativa) then
+    raise exception 'proposta_inexistente';
+  end if;
+  if not fotos_validas(p_fotos) then raise exception 'fotos_invalidas'; end if;
+
+  select count(*) into v_hoje
+    from redacoes
+   where estudante_id = auth.uid()
+     and created_at >= (date_trunc('day', now() at time zone 'America/Recife') at time zone 'America/Recife');
+  if v_hoje >= limite_redacoes_dia() then raise exception 'limite_diario'; end if;
+
+  insert into redacoes (estudante_id, proposta_id, texto, palavras, status, enviada_em, fotos)
+  values (auth.uid(), p_proposta, '', 0, 'enviada', now(), p_fotos)
+  returning id into v_id;
   return v_id;
 end
 $$;
 
-revoke all on function limite_transcricoes_dia() from public, anon;
-revoke all on function reservar_transcricao(int) from public, anon;
-revoke all on function enviar_redacao_com_fotos(uuid, text, text[]) from public, anon;
-grant execute on function limite_transcricoes_dia() to authenticated;
-grant execute on function reservar_transcricao(int) to authenticated;
-grant execute on function enviar_redacao_com_fotos(uuid, text, text[]) to authenticated;
+-- Foto ilegível ou errada: troca as fotos de uma redação ainda sem correção (até 3 vezes).
+create function trocar_fotos_redacao(p_redacao uuid, p_fotos text[]) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  r redacoes;
+begin
+  select * into r from redacoes where id = p_redacao for update;
+  if r.id is null or r.estudante_id is distinct from auth.uid() then
+    raise exception 'redacao_inexistente';
+  end if;
+  if r.status <> 'enviada' or cardinality(r.fotos) = 0 then raise exception 'ja_corrigida'; end if;
+  if r.trocas_fotos >= 3 then raise exception 'trocas_esgotadas'; end if;
+  if not fotos_validas(p_fotos) then raise exception 'fotos_invalidas'; end if;
+  update redacoes
+     set fotos = p_fotos, trocas_fotos = trocas_fotos + 1, tentativas_ia = 0
+   where id = r.id;
+end
+$$;
+
+-- Grava a transcrição feita pela IA e a correção (registrar_correcao_ia confere o segredo).
+create function registrar_correcao_foto(
+  p_segredo text,
+  p_redacao uuid,
+  p_texto text,
+  p_modelo text,
+  p_competencias jsonb,
+  p_trechos jsonb,
+  p_plano jsonb,
+  p_tokens_entrada int,
+  p_tokens_saida int
+) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  v_texto text := left(btrim(coalesce(p_texto, '')), 8000);
+begin
+  if not exists (
+    select 1 from privado.segredos
+     where nome = 'correcao_ia'
+       and hash_sha256 = encode(extensions.digest(coalesce(p_segredo, ''), 'sha256'), 'hex')
+  ) then
+    raise exception 'nao_autorizado';
+  end if;
+  update redacoes
+     set texto = v_texto,
+         palavras = case when v_texto = '' then 0
+                         else coalesce(array_length(regexp_split_to_array(v_texto, '\s+'), 1), 0) end
+   where id = p_redacao and status = 'enviada' and cardinality(fotos) > 0;
+  if not found then raise exception 'ja_corrigida'; end if;
+  return registrar_correcao_ia(p_segredo, p_redacao, p_modelo, p_competencias, p_trechos,
+                               p_plano, p_tokens_entrada, p_tokens_saida);
+end
+$$;
+
+revoke all on function fotos_validas(text[]) from public, anon, authenticated;
+revoke all on function enviar_redacao_foto(uuid, text[]) from public, anon;
+revoke all on function trocar_fotos_redacao(uuid, text[]) from public, anon;
+revoke all on function registrar_correcao_foto(text, uuid, text, text, jsonb, jsonb, jsonb, int, int) from public, anon;
+grant execute on function enviar_redacao_foto(uuid, text[]) to authenticated;
+grant execute on function trocar_fotos_redacao(uuid, text[]) to authenticated;
+grant execute on function registrar_correcao_foto(text, uuid, text, text, jsonb, jsonb, jsonb, int, int) to authenticated;

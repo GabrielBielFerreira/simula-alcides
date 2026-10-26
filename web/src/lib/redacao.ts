@@ -1,16 +1,10 @@
 /**
- * Redação no banco: propostas, envio, histórico e devolutivas. A correção em si roda no
- * servidor (`correcao-ia.ts`).
+ * Redação no banco: propostas, envio (fotos da folha), histórico e devolutivas. A correção em
+ * si roda no servidor (`correcao-ia.ts`).
  */
 import type { Devolutiva, TextoMotivador, Trecho, PassoPlano } from "@/data/estudante";
 import { supabase } from "./supabase";
-import {
-  lerFotoRedacao,
-  MENSAGEM_FALHA,
-  pedirCorrecao,
-  type ResultadoCorrecao,
-  type ResultadoLeitura,
-} from "./correcao-ia";
+import { MENSAGEM_FALHA, pedirCorrecao, type ResultadoCorrecao } from "./correcao-ia";
 
 function falhou(error: { message: string } | null): asserts error is null {
   if (error) throw new Error(error.message);
@@ -147,50 +141,70 @@ export async function buscarRedacao(id: string): Promise<RedacaoCompleta | null>
 }
 
 const ERROS_ENVIO: Record<string, string> = {
-  limite_diario:
-    "Você já enviou 3 redações hoje. Amanhã tem mais! Seu texto continua salvo neste aparelho.",
-  texto_curto: "Seu texto está curto demais para a correção. Escreva pelo menos 8 linhas.",
-  texto_longo: "Seu texto passou do tamanho máximo. Enxugue um pouco e envie de novo.",
+  limite_diario: "Você já enviou 3 redações hoje. Amanhã tem mais! Guarde a sua folha.",
   proposta_inexistente: "Essa proposta não está mais disponível.",
   sem_login: "Sua sessão expirou. Entre de novo para enviar.",
-  fotos_invalidas: "Não achamos a foto da folha. Tire a foto de novo ou envie só o texto.",
+  fotos_invalidas: "Não achamos a foto da folha. Tire a foto de novo.",
+  trocas_esgotadas:
+    "Você já trocou as fotos desta redação algumas vezes. Envie uma redação nova com uma foto mais nítida.",
+  ja_corrigida: "Esta redação já foi corrigida.",
 };
 
-/** Envia a redação; devolve o id. Lança com uma mensagem pronta para a tela. */
-export async function enviarRedacao(
-  propostaId: string,
-  texto: string,
-  fotos: string[] = [],
-): Promise<string> {
-  const { data, error } = fotos.length
-    ? await supabase.rpc("enviar_redacao_com_fotos", {
-        p_proposta: propostaId,
-        p_texto: texto,
-        p_fotos: fotos,
-      })
-    : await supabase.rpc("enviar_redacao", { p_proposta: propostaId, p_texto: texto });
-  if (error) {
-    const chave = Object.keys(ERROS_ENVIO).find((k) => error.message.includes(k));
-    throw new Error(
-      chave ? ERROS_ENVIO[chave] : "Não deu para enviar agora. Confira a internet e tente de novo.",
-    );
-  }
+const mensagemDeErro = (error: { message: string }) => {
+  const chave = Object.keys(ERROS_ENVIO).find((k) => error.message.includes(k));
+  return chave
+    ? ERROS_ENVIO[chave]
+    : "Não deu para enviar agora. Confira a internet e tente de novo.";
+};
+
+/** Envia as fotos da folha e cria a redação; devolve o id. Lança com mensagem para a tela. */
+export async function enviarRedacaoFoto(propostaId: string, arquivos: File[]): Promise<string> {
+  const fotos = await enviarFotos(arquivos);
+  const { data, error } = await supabase.rpc("enviar_redacao_foto", {
+    p_proposta: propostaId,
+    p_fotos: fotos,
+  });
+  if (error) throw new Error(mensagemDeErro(error));
   return data as string;
 }
 
-/** Pede a correção ao servidor. Devolve null se deu certo ou a mensagem de falha. */
-export async function corrigirRedacao(redacaoId: string): Promise<string | null> {
+/** Troca as fotos de uma redação que a IA não conseguiu ler. Lança com mensagem para a tela. */
+export async function trocarFotosRedacao(redacaoId: string, arquivos: File[]) {
+  const fotos = await enviarFotos(arquivos);
+  const { error } = await supabase.rpc("trocar_fotos_redacao", {
+    p_redacao: redacaoId,
+    p_fotos: fotos,
+  });
+  if (error) throw new Error(mensagemDeErro(error));
+}
+
+export interface FalhaCorrecao {
+  mensagem: string;
+  /** A IA não conseguiu ler a foto: a tela oferece tirar outra. */
+  ilegivel: boolean;
+}
+
+/** Pede a correção ao servidor. Devolve null se deu certo ou a falha para mostrar na tela. */
+export async function corrigirRedacao(redacaoId: string): Promise<FalhaCorrecao | null> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  if (!token) return MENSAGEM_FALHA.sem_login;
+  if (!token) return { mensagem: MENSAGEM_FALHA.sem_login, ilegivel: false };
   let r: ResultadoCorrecao;
   try {
     r = await pedirCorrecao({ data: { token, redacaoId } });
   } catch (e) {
     console.error(e);
-    return MENSAGEM_FALHA.indisponivel;
+    return { mensagem: MENSAGEM_FALHA.indisponivel, ilegivel: false };
   }
-  return r.ok ? null : MENSAGEM_FALHA[r.motivo];
+  if (r.ok) return null;
+  if (r.motivo === "ilegivel")
+    return {
+      mensagem: r.aviso
+        ? `A IA não conseguiu ler a sua folha: ${r.aviso}`
+        : MENSAGEM_FALHA.ilegivel,
+      ilegivel: true,
+    };
+  return { mensagem: MENSAGEM_FALHA[r.motivo], ilegivel: false };
 }
 
 /* ---------- Redação escrita à mão (foto da folha) ---------- */
@@ -217,42 +231,30 @@ async function reduzirFoto(arquivo: File): Promise<Blob> {
   }
 }
 
-/** Envia uma foto da folha para a pasta do estudante; devolve o caminho no Storage. */
-export async function enviarFotoRedacao(arquivo: File): Promise<string> {
+/** Envia as fotos da folha para a pasta do estudante; devolve os caminhos no Storage. */
+async function enviarFotos(arquivos: File[]): Promise<string[]> {
   const { data } = await supabase.auth.getSession();
   const uid = data.session?.user.id;
   if (!uid) throw new Error(ERROS_ENVIO.sem_login);
-  let corpo: Blob;
-  try {
-    corpo = await reduzirFoto(arquivo);
-  } catch {
-    throw new Error("Não deu para abrir essa imagem. Tire a foto de novo ou use outra.");
+  const caminhos: string[] = [];
+  for (const arquivo of arquivos) {
+    let corpo: Blob;
+    try {
+      corpo = await reduzirFoto(arquivo);
+    } catch {
+      throw new Error("Não deu para abrir uma das fotos. Tire a foto de novo ou escolha outra.");
+    }
+    const caminho = `${uid}/${crypto.randomUUID()}.jpg`;
+    const { error } = await supabase.storage
+      .from(BUCKET_FOTOS)
+      .upload(caminho, corpo, { contentType: "image/jpeg" });
+    if (error) {
+      console.error(error);
+      throw new Error("A foto não subiu. Confira a internet e tente de novo.");
+    }
+    caminhos.push(caminho);
   }
-  const caminho = `${uid}/${crypto.randomUUID()}.jpg`;
-  const { error } = await supabase.storage
-    .from(BUCKET_FOTOS)
-    .upload(caminho, corpo, { contentType: "image/jpeg" });
-  if (error) {
-    console.error(error);
-    throw new Error("A foto não subiu. Confira a internet e tente de novo.");
-  }
-  return caminho;
-}
-
-/** Pede à IA a transcrição das fotos já enviadas. */
-export async function lerFotosRedacao(fotos: string[]): Promise<ResultadoLeitura> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) return { ok: false, mensagem: MENSAGEM_FALHA.sem_login };
-  try {
-    return await lerFotoRedacao({ data: { token, fotos } });
-  } catch (e) {
-    console.error(e);
-    return {
-      ok: false,
-      mensagem: "A IA não conseguiu ler a foto agora. Tente de novo em alguns minutos.",
-    };
-  }
+  return caminhos;
 }
 
 /** Links temporários (1 hora) para mostrar as fotos da folha. */
@@ -261,28 +263,6 @@ export async function linksDasFotos(fotos: string[]): Promise<string[]> {
   const { data, error } = await supabase.storage.from(BUCKET_FOTOS).createSignedUrls(fotos, 3600);
   falhou(error);
   return (data ?? []).map((d) => d.signedUrl).filter((u): u is string => Boolean(u));
-}
-
-/* ---------- Rascunho neste aparelho ---------- */
-
-const chaveRascunho = (propostaId: string) => `simula-redacao-${propostaId}`;
-
-export function lerRascunho(propostaId: string) {
-  try {
-    return localStorage.getItem(chaveRascunho(propostaId)) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-export function salvarRascunhoLocal(propostaId: string, texto: string) {
-  try {
-    if (texto.trim()) localStorage.setItem(chaveRascunho(propostaId), texto);
-    else localStorage.removeItem(chaveRascunho(propostaId));
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /* ---------- Coordenação ---------- */

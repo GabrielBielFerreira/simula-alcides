@@ -132,7 +132,7 @@ export function contarRedacao(texto: string) {
   return { palavras, linhas };
 }
 
-export const etapasRedacao = ["Proposta", "Escrever", "Revisar", "Corrigindo", "Devolutiva"];
+export const etapasRedacao = ["Proposta", "Foto", "Revisar", "Corrigindo", "Devolutiva"];
 
 /** Nomes curtos das 5 competências (os completos estão em `competenciasRedacao`). */
 export const competenciasCurtas = [
@@ -158,11 +158,12 @@ export const instrucaoProposta =
   "A partir da leitura dos textos motivadores e com base nos conhecimentos construídos ao longo da sua formação, redija um texto dissertativo-argumentativo em modalidade escrita formal da língua portuguesa sobre o tema abaixo, apresentando proposta de intervenção que respeite os direitos humanos.";
 
 export const regrasProposta = [
+  "Escreva à mão, com caneta escura, numa folha pautada",
   "Texto dissertativo-argumentativo, em prosa",
   "Entre 8 e 30 linhas",
   "Proposta de intervenção que respeite os direitos humanos",
   "Use os textos motivadores como apoio, sem copiar trechos",
-  "Não escreva seu nome nem dados pessoais no texto",
+  "Não escreva seu nome nem dados pessoais na folha",
 ];
 
 export const detalhesPropostas: Record<string, DetalheProposta> = {
@@ -245,10 +246,11 @@ export const estruturaRedacao = [
 
 /** Itens da etapa "Revisar". */
 export const checklistRevisao = [
+  "A foto mostra a folha inteira, nítida e sem sombra.",
   "Minha tese aparece já na introdução.",
   "Cada parágrafo de desenvolvimento tem um argumento e uma prova (dado, lei ou exemplo).",
   "A conclusão traz agente, ação, meio, finalidade e detalhamento.",
-  "Reli o texto procurando erros de acentuação e de pontuação.",
+  "Reli a folha procurando erros de acentuação e de pontuação.",
 ];
 
 /** Avisos da etapa "Corrigindo" (para o leitor de tela e abaixo da barra). */

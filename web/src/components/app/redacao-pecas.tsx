@@ -25,6 +25,7 @@ import {
 } from "@/data/estudante";
 import { Cartao, formato } from "./shared";
 import { BarraCompetencia } from "./barra-competencia";
+import { FotosDaFolha } from "./redacao-foto";
 
 export const AVISO_ESTIMATIVA =
   "Estimativa pedagógica gerada por IA. Não é a nota oficial do ENEM. Um professor pode revisar.";
@@ -271,9 +272,12 @@ export function Devolutiva({
   exemplo = false,
   acao,
   acaoSemAnterior,
+  fotos = [],
 }: {
   dados: DadosDevolutiva;
   texto: string;
+  /** Fotos da folha (redação manuscrita): o texto mostrado é o que a IA leu nelas. */
+  fotos?: string[];
   /** Redação anterior, para a evolução por competência. */
   anterior?: { rotulo: string; curto: string; competencias: number[] };
   /** Como chamar esta redação na comparação (ex.: "setembro" e "set"). */
@@ -396,6 +400,12 @@ export function Devolutiva({
         <Revelar className="min-w-0">
           <Cartao>
             <h2 className="text-[22px] font-bold">Seu texto</h2>
+            {fotos.length > 0 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Lido da sua foto pela IA. Se alguma palavra saiu diferente da folha, foi a leitura
+                da letra.
+              </p>
+            )}
             {trechos.length > 0 && (
               <ul className="mt-3 flex flex-wrap gap-2 text-sm" aria-label="Legenda dos destaques">
                 {(Object.keys(estiloTrecho) as TipoTrecho[]).map((tipo) => {
@@ -418,6 +428,7 @@ export function Devolutiva({
             <div className="mt-5">
               <TextoComTrechos texto={texto} trechos={trechos} />
             </div>
+            <FotosDaFolha fotos={fotos} className="mt-6 border-t border-linha pt-5" />
           </Cartao>
         </Revelar>
 

@@ -1,203 +1,165 @@
 /**
- * Redação escrita à mão: o estudante fotografa a folha, a IA lê a letra e o texto cai no
- * editor para ele conferir antes de enviar. As fotos ficam guardadas junto da redação.
+ * Redação escrita à mão: o estudante fotografa a folha (câmera direto no celular ou galeria) e
+ * a IA corrige direto das fotos. As fotos ficam guardadas junto da redação.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, Camera, ImagePlus, Loader2, ScanText, X } from "lucide-react";
+import { Camera, ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { enviarFotoRedacao, lerFotosRedacao, linksDasFotos } from "@/lib/redacao";
+import { linksDasFotos } from "@/lib/redacao";
 
 const MAX_FOTOS = 2;
 
-interface Selecionada {
+export interface FotoEscolhida {
   arquivo: File;
   previa: string;
 }
 
-/** Cartão "Escreveu no papel?" do editor: escolher fotos, mandar ler, devolver o texto. */
-export function EnviarFoto({
-  aoLer,
+/** Libera as prévias (object URLs) quando a lista sai da tela. */
+export function useLiberarPrevias(fotos: FotoEscolhida[]) {
+  const atuais = useRef(fotos);
+  atuais.current = fotos;
+  useEffect(() => () => atuais.current.forEach((f) => URL.revokeObjectURL(f.previa)), []);
+}
+
+/**
+ * Escolha das fotos da folha (até 2: frente e verso). Controlado: quem usa guarda a lista.
+ * "Tirar foto" abre a câmera traseira no celular (capture); "Galeria" abre fotos e arquivos.
+ */
+export function EscolherFotos({
+  fotos,
+  aoMudar,
+  desativado = false,
 }: {
-  aoLer: (r: { texto: string; fotos: string[]; duvidas: number; aviso: string }) => void;
+  fotos: FotoEscolhida[];
+  aoMudar: (fotos: FotoEscolhida[]) => void;
+  desativado?: boolean;
 }) {
-  const [selecionadas, setSelecionadas] = useState<Selecionada[]>([]);
-  const [fase, setFase] = useState<"escolher" | "enviando" | "lendo">("escolher");
-  const [erro, setErro] = useState<string | null>(null);
   const camera = useRef<HTMLInputElement>(null);
   const galeria = useRef<HTMLInputElement>(null);
 
-  // Libera as prévias quando o cartão sai da tela.
-  const atuais = useRef(selecionadas);
-  atuais.current = selecionadas;
-  useEffect(() => () => atuais.current.forEach((s) => URL.revokeObjectURL(s.previa)), []);
-
   function adicionar(lista: FileList | null) {
     if (!lista?.length) return;
-    setErro(null);
     const novas = [...lista]
       .filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name))
       .map((arquivo) => ({ arquivo, previa: URL.createObjectURL(arquivo) }));
-    setSelecionadas((s) => {
-      const juntas = [...s, ...novas];
-      juntas.slice(MAX_FOTOS).forEach((x) => URL.revokeObjectURL(x.previa));
-      return juntas.slice(0, MAX_FOTOS);
-    });
+    const juntas = [...fotos, ...novas];
+    juntas.slice(MAX_FOTOS).forEach((f) => URL.revokeObjectURL(f.previa));
+    aoMudar(juntas.slice(0, MAX_FOTOS));
   }
 
   function remover(i: number) {
-    setSelecionadas((s) => {
-      URL.revokeObjectURL(s[i].previa);
-      return s.filter((_, j) => j !== i);
-    });
+    URL.revokeObjectURL(fotos[i].previa);
+    aoMudar(fotos.filter((_, j) => j !== i));
   }
 
-  async function ler() {
-    setErro(null);
-    setFase("enviando");
-    let caminhos: string[];
-    try {
-      caminhos = await Promise.all(selecionadas.map((s) => enviarFotoRedacao(s.arquivo)));
-    } catch (e) {
-      setFase("escolher");
-      return setErro(e instanceof Error ? e.message : "A foto não subiu. Tente de novo.");
-    }
-    setFase("lendo");
-    const r = await lerFotosRedacao(caminhos);
-    setFase("escolher");
-    if (!r.ok) return setErro(r.mensagem);
-    aoLer({ texto: r.texto, fotos: caminhos, duvidas: r.duvidas, aviso: r.aviso });
-  }
-
-  const ocupado = fase !== "escolher";
+  const entrada = (ref: typeof camera, comCamera: boolean) => (
+    <input
+      ref={ref}
+      type="file"
+      accept="image/*"
+      capture={comCamera ? "environment" : undefined}
+      multiple={!comCamera}
+      className="sr-only"
+      tabIndex={-1}
+      aria-hidden
+      onChange={(e) => {
+        adicionar(e.target.files);
+        e.target.value = "";
+      }}
+    />
+  );
 
   return (
-    <section className="cartao p-5 md:p-6" aria-labelledby="titulo-foto">
-      <div className="flex items-start gap-4">
-        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-rosa/10 text-rosa">
-          <Camera className="size-6" aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <h3 id="titulo-foto" className="text-lg font-bold leading-snug">
-            Escreveu no papel? Mande a foto
-          </h3>
-          <p className="mt-1 text-muted-foreground">
-            A IA lê a sua letra e coloca o texto aqui embaixo. Você confere e envia para correção.
-          </p>
-        </div>
-      </div>
+    <div>
+      {entrada(camera, true)}
+      {entrada(galeria, false)}
 
-      {/* Câmera direto no celular (capture) e galeria/arquivos (sem capture). */}
-      <input
-        ref={camera}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={(e) => {
-          adicionar(e.target.files);
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={galeria}
-        type="file"
-        accept="image/*"
-        multiple
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={(e) => {
-          adicionar(e.target.files);
-          e.target.value = "";
-        }}
-      />
-
-      {selecionadas.length > 0 && (
-        <ul className="mt-5 flex flex-wrap gap-3">
-          {selecionadas.map((s, i) => (
-            <li key={s.previa} className="relative">
+      {fotos.length > 0 ? (
+        <ul className="flex flex-wrap gap-4" aria-label="Fotos escolhidas">
+          {fotos.map((f, i) => (
+            <li key={f.previa} className="relative">
               <img
-                src={s.previa}
+                src={f.previa}
                 alt={`Foto ${i + 1} da folha`}
-                className="h-36 w-28 rounded-xl border border-linha object-cover"
+                className="h-56 w-44 rounded-2xl border border-linha bg-creme object-cover sm:h-64 sm:w-48"
               />
-              {!ocupado && (
+              <span className="absolute bottom-2 left-2 rounded-full bg-marrom/80 px-2.5 py-0.5 text-sm font-semibold text-offwhite">
+                {fotos.length > 1 ? `Página ${i + 1}` : "Sua folha"}
+              </span>
+              {!desativado && (
                 <button
                   type="button"
                   onClick={() => remover(i)}
-                  className="absolute -right-2 -top-2 grid size-8 place-items-center rounded-full bg-marrom text-offwhite shadow"
+                  className="absolute -right-2 -top-2 grid size-10 place-items-center rounded-full bg-marrom text-offwhite shadow-md"
                   aria-label={`Tirar a foto ${i + 1}`}
                 >
-                  <X className="size-4" aria-hidden />
+                  <X className="size-5" aria-hidden />
                 </button>
               )}
             </li>
           ))}
         </ul>
+      ) : (
+        <button
+          type="button"
+          disabled={desativado}
+          onClick={() => camera.current?.click()}
+          className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-borda-controle bg-creme/50 px-6 py-10 text-center transition-colors hover:bg-creme focus-visible:outline-3 focus-visible:outline-laranja-acao"
+        >
+          <span className="grid size-16 place-items-center rounded-2xl bg-rosa/10 text-rosa">
+            <Camera className="size-8" aria-hidden />
+          </span>
+          <span className="text-lg font-bold">Tirar foto da folha</span>
+          <span className="max-w-sm text-muted-foreground">
+            Folha inteira na foto, de cima, com boa luz e sem sombra.
+          </span>
+        </button>
       )}
 
-      {ocupado ? (
-        <p
-          className="mt-5 flex items-center gap-3 rounded-xl bg-creme px-4 py-3 font-semibold"
-          aria-live="polite"
-        >
-          <Loader2 className="size-5 shrink-0 animate-spin text-rosa" aria-hidden />
-          {fase === "enviando" ? "Enviando a foto…" : "Lendo sua letra… isso leva uns 20 segundos."}
-        </p>
-      ) : (
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          {selecionadas.length > 0 ? (
-            <>
-              <Button onClick={ler}>
-                <ScanText />
-                Ler minha redação
-              </Button>
-              {selecionadas.length < MAX_FOTOS && (
-                <Button variant="outline" onClick={() => camera.current?.click()}>
-                  <ImagePlus />
-                  Adicionar a 2ª página
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
-              <Button onClick={() => camera.current?.click()}>
-                <Camera />
-                Tirar foto da folha
-              </Button>
-              <Button variant="outline" onClick={() => galeria.current?.click()}>
-                <ImagePlus />
-                Escolher da galeria
-              </Button>
-            </>
+      {!desativado && (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          {fotos.length > 0 && fotos.length < MAX_FOTOS && (
+            <Button variant="outline" onClick={() => camera.current?.click()}>
+              <Camera />
+              Fotografar o verso
+            </Button>
+          )}
+          {fotos.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                fotos.forEach((f) => URL.revokeObjectURL(f.previa));
+                aoMudar([]);
+                camera.current?.click();
+              }}
+            >
+              <Camera />
+              Tirar de novo
+            </Button>
+          )}
+          {fotos.length < MAX_FOTOS && (
+            <Button variant="ghost" onClick={() => galeria.current?.click()}>
+              <ImagePlus />
+              Escolher da galeria
+            </Button>
           )}
         </div>
       )}
-
-      <div aria-live="polite">
-        {erro && (
-          <p className="mt-4 flex items-start gap-2 rounded-xl bg-mostarda/25 px-4 py-3 text-marrom">
-            <AlertCircle className="mt-1 size-5 shrink-0" aria-hidden />
-            {erro}
-          </p>
-        )}
-      </div>
-
-      {!ocupado && (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Dica: folha inteira na foto, de cima, com boa luz e sem sombra. Até {MAX_FOTOS} fotos (se
-          usou frente e verso).
-        </p>
-      )}
-    </section>
+    </div>
   );
 }
 
-/** Miniaturas das fotos da folha; tocar abre a foto inteira. */
-export function FotosDaFolha({ fotos, className }: { fotos: string[]; className?: string }) {
+/** Miniaturas das fotos guardadas da folha; tocar abre a foto inteira. */
+export function FotosDaFolha({
+  fotos,
+  className,
+  titulo = "Foto da folha",
+}: {
+  fotos: string[];
+  className?: string;
+  titulo?: string;
+}) {
   const q = useQuery({
     queryKey: ["fotos-redacao", ...fotos],
     queryFn: () => linksDasFotos(fotos),
@@ -207,7 +169,7 @@ export function FotosDaFolha({ fotos, className }: { fotos: string[]; className?
   if (!fotos.length) return null;
   return (
     <div className={className}>
-      <p className="font-semibold">Foto da folha</p>
+      <p className="font-semibold">{titulo}</p>
       <p className="text-sm text-muted-foreground">Toque para ver em tamanho grande.</p>
       {q.error ? (
         <p className="mt-2 text-sm text-muted-foreground">Não foi possível carregar a foto.</p>
@@ -224,7 +186,7 @@ export function FotosDaFolha({ fotos, className }: { fotos: string[]; className?
                 <img
                   src={url}
                   alt={`Foto ${i + 1} da folha de redação`}
-                  className="h-40 w-32 rounded-xl border border-linha object-cover transition-opacity hover:opacity-90"
+                  className="h-40 w-32 rounded-xl border border-linha bg-creme object-cover transition-opacity hover:opacity-90"
                 />
               </a>
             </li>

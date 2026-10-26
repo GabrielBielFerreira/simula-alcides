@@ -70,7 +70,8 @@ export function RedacaoInicio() {
       <header className="mb-6">
         <h1 className="titulo-pagina">Redação</h1>
         <p className="mt-3 text-muted-foreground">
-          Escolha um tema, escreva no seu ritmo e receba orientação por competência.
+          Escolha um tema, escreva à mão no papel, tire uma foto e receba a correção por
+          competência.
         </p>
         <div className="mt-4">
           <SeloPrevia />
@@ -217,7 +218,7 @@ function MinhasRedacoes({ minhas }: { minhas: RedacaoResumo[] }) {
           <EstadoVazio
             icon={PenLine}
             titulo="Sua primeira redação ainda está por vir"
-            texto="Escolha uma proposta e escreva no seu ritmo. A devolutiva chega em instantes."
+            texto="Escolha uma proposta, escreva no papel e mande a foto. A devolutiva chega em instantes."
             acao={
               <Button asChild>
                 <a href="#propostas">Ver propostas</a>
