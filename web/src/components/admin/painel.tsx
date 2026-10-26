@@ -163,7 +163,7 @@ function ListaEstudantes({
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <label className="relative block min-w-0 flex-1 sm:max-w-md">
+        <label className="relative block min-w-0 flex-1 basis-64 sm:max-w-md">
           <span className="sr-only">Buscar estudante</span>
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground"

@@ -80,7 +80,7 @@ export function AreaChip({
     <span
       className={cn(
         "inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold",
-        claro ? "bg-white/15 text-white ring-1 ring-white/25" : cn(v.soft, "text-marrom"),
+        claro ? "bg-black/10 text-white ring-1 ring-white/25" : cn(v.soft, "text-marrom"),
         className,
       )}
     >

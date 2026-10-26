@@ -338,7 +338,7 @@ const MapaQuestoes = memo(function MapaQuestoes({
                       <span
                         key={x.id}
                         aria-hidden
-                        className="anel-atual pointer-events-none absolute -inset-1.5 rounded-[calc(var(--radius-xl)+4px)] border-2 border-laranja-acao"
+                        className="anel-atual pointer-events-none absolute -inset-1.5 rounded-full border-2 border-laranja-acao"
                         style={noPainel ? ({ "--atraso": "200ms" } as CSSProperties) : undefined}
                       />
                     )}
@@ -1004,7 +1004,7 @@ function ProvaAberta({ dados }: { dados: ProvaCarregada }) {
                 </Button>
               )}
               <Button
-                className="min-w-0 flex-1 whitespace-normal px-2 text-sm"
+                className="min-w-0 flex-1 whitespace-normal px-2 py-1 text-sm leading-tight"
                 onClick={(e) => (revisao ? confirmar("entregar", e.currentTarget) : avancar())}
               >
                 {revisao

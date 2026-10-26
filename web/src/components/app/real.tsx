@@ -16,7 +16,6 @@ import {
   EyeOff,
   Flag,
   Target,
-  TrendingUp,
   ListChecks,
   PenLine,
   Save,
@@ -84,7 +83,7 @@ function EscolhaPorArea({ porArea, solto = false }: { porArea: SimuladoReal[]; s
       <p className="text-sm text-muted-foreground">
         Bom para reforçar a área em que você mais precisa.
       </p>
-      <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+      <ul className={cn("mt-3 grid gap-2.5 sm:grid-cols-2", !solto && "xl:grid-cols-1")}>
         {porArea.map((f) => {
           const feito = f.status === "entregue" || f.status === "expirada";
           return (
@@ -98,13 +97,13 @@ function EscolhaPorArea({ porArea, solto = false }: { porArea: SimuladoReal[]; s
               >
                 {f.status === "em_andamento" && (
                   <span className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-laranja-acao">
-                    <Save className="size-4" aria-hidden />
+                    <Save className="size-4 shrink-0" aria-hidden />
                     Em andamento: continuar
                   </span>
                 )}
                 {feito && f.percentual !== null && (
                   <span className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-acerto">
-                    <CircleCheck className="size-4" aria-hidden />
+                    <CircleCheck className="size-4 shrink-0" aria-hidden />
                     Última vez: {f.percentual.toLocaleString("pt-BR")}% de acertos
                   </span>
                 )}
@@ -182,21 +181,21 @@ export function CartaoSimuladoReal({
     ? "Continuar"
     : porArea.length
       ? feito
-        ? "Fazer completo de novo"
+        ? "Refazer completo"
         : "Fazer completo"
       : feito
-        ? "Fazer de novo"
+        ? "Refazer"
         : "Começar";
   if (destaque)
     // Início: o próximo simulado em destaque (gradiente da marca) e os treinos por área abaixo.
     return (
       <div className="space-y-4">
         <article className="cartao-marca p-5 md:p-7">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[13px] font-bold tracking-wide">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-black/15 px-3 py-1 text-[13px] font-bold tracking-wide">
             {andamento ? "Continue de onde parou" : "Comece por aqui"}
           </span>
           <h2 className="mt-3 text-[24px] font-extrabold text-white md:text-[30px]">{s.titulo}</h2>
-          <p className="mt-1 text-white/85">
+          <p className="mt-1 text-white">
             {s.questoes} questões · {s.duracao}
             {feito && s.percentual !== null && (
               <> · última vez {s.percentual.toLocaleString("pt-BR")}% de acertos</>
@@ -496,7 +495,7 @@ export function InicioReal() {
   );
 }
 
-/** Faixa de números do Início: quantos simulados entregues, média e o último. */
+/** Faixa de números do Início: simulados entregues, média de acertos e questões feitas. */
 function Numeros({ entregues }: { entregues: Tentativa[] }) {
   const media =
     Math.round((entregues.reduce((n, t) => n + (t.percentual ?? 0), 0) / entregues.length) * 10) /
@@ -515,9 +514,9 @@ function Numeros({ entregues }: { entregues: Tentativa[] }) {
       c: "bg-rosa/10 text-rosa",
     },
     {
-      I: TrendingUp,
-      n: `${(entregues[0].percentual ?? 0).toLocaleString("pt-BR")}%`,
-      t: "no último",
+      I: ListChecks,
+      n: entregues.reduce((n, t) => n + (t.total ?? 0), 0).toLocaleString("pt-BR"),
+      t: "questões feitas",
       c: "bg-area-natureza/10 text-area-natureza",
     },
   ];
@@ -589,13 +588,13 @@ function PedirTelefone() {
 
 function ListaTentativas({ itens }: { itens: Tentativa[] }) {
   return (
-    <ul className="cartao mt-4 divide-y divide-linha">
+    <ul className="cartao mt-4 divide-y divide-linha overflow-hidden">
       {itens.map((t) => (
         <li key={t.id}>
           <Link
             to="/app/resultado/$id"
             params={{ id: t.id }}
-            className="flex min-h-16 items-center gap-3 p-4 transition-colors first:rounded-t-[inherit] last:rounded-b-[inherit] hover:bg-creme/70"
+            className="flex min-h-16 items-center gap-3 p-4 transition-colors hover:bg-creme/70"
           >
             <span
               className={cn(
@@ -659,14 +658,14 @@ export function DesempenhoReal() {
       ) : (
         <>
           <section className="cartao-marca p-5 md:p-7">
-            <p className="font-semibold text-white/85">Média de acertos</p>
+            <p className="font-semibold text-white">Média de acertos</p>
             <p className="font-display text-6xl font-extrabold tabular-nums text-white">
               {media?.toLocaleString("pt-BR")}%
             </p>
-            <p className="mt-1 text-white/85">
+            <p className="mt-1 text-white">
               Em {entregues.length} {entregues.length === 1 ? "simulado" : "simulados"}
             </p>
-            <p className="mt-3 text-sm text-white/80">
+            <p className="mt-3 text-sm text-white">
               Percentual de acertos. Não é a nota TRI oficial do ENEM.
             </p>
           </section>

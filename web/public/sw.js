@@ -3,7 +3,7 @@
  * mostrar um aviso amigável quando abrir sem internet. Não guarda páginas nem dados: tudo vem
  * sempre da rede, então uma versão nova do site aparece na hora.
  */
-const CACHE = "simula-offline-v1";
+const CACHE = "simula-offline-v2";
 const OFFLINE = "/offline.html";
 
 self.addEventListener("install", (evento) => {

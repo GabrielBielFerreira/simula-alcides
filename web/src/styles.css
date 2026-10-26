@@ -95,7 +95,7 @@
      amarelo); o texto passa do marrom para um quase-preto e o fundo creme vira um neutro claro.
      Os nomes antigos (marrom, creme, offwhite, linha) ficam para não mexer em cada tela. */
   --laranja: #e84e1b;
-  --laranja-acao: #d03f0c;
+  --laranja-acao: #b93a0f;
   --rosa: #c2274b;
   --vinho: #7a0021;
   --mostarda: #eaa842;
@@ -162,7 +162,8 @@
     var(--amarelo) 120%
   );
   /* Cartões de destaque e botão principal: as duas cores do logo do Simula (laranja → magenta). */
-  --gradiente-marca: linear-gradient(135deg, #e8501d 0%, #d93a34 45%, #c6284f 100%);
+  /* Paradas escuras o bastante para texto branco pequeno (≥ 4,5:1 em todo o cartão). */
+  --gradiente-marca: linear-gradient(135deg, #d03f0c 0%, #cc3530 45%, #c6284f 100%);
   --gradiente-botao: linear-gradient(135deg, #d03f0c 0%, #c6284f 100%);
 }
 
@@ -237,7 +238,7 @@
     width: 70%;
     aspect-ratio: 1;
     border-radius: 9999px;
-    background: radial-gradient(circle, rgb(255 255 255 / 0.22), transparent 65%);
+    background: radial-gradient(circle, rgb(255 255 255 / 0.12), transparent 65%);
     pointer-events: none;
   }
 }
@@ -252,8 +253,8 @@
 /* Barras fixas (topo e abas do celular): vidro fosco sobre o conteúdo. */
 @utility vidro {
   background-color: color-mix(in srgb, var(--card) 90%, transparent);
+  /* Só a propriedade padrão: o Lightning CSS gera o -webkit- (escrito à mão, ele apaga a padrão). */
   backdrop-filter: saturate(1.6) blur(14px);
-  -webkit-backdrop-filter: saturate(1.6) blur(14px);
 }
 
 @utility container-site {

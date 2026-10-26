@@ -596,8 +596,7 @@ function GrupoEscolha({
  * Cartão de escolha com semântica de radio (input nativo escondido, então as setas do
  * teclado funcionam). Selecionado: o estado padrão do produto (borda e fundo laranja-ação,
  * círculo preenchido com Check), com a mesma transição nos dois sentidos; o Check dá o pop
- * só no toque que escolheu (`recem`). O traço marrom de baixo (sombra do cartão) mora num
- * pseudo-elemento e esmaece em 140ms ao marcar, em vez de sumir de uma vez.
+ * só no toque que escolheu (`recem`).
  */
 function CartaoEscolha({
   id,
@@ -625,8 +624,9 @@ function CartaoEscolha({
       className={cn(
         "selecionavel relative flex min-h-[76px] cursor-pointer items-center gap-3 rounded-2xl border-2 bg-card p-4 active:scale-[0.99] sm:gap-4",
         "has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-laranja-acao",
-        "after:pointer-events-none after:absolute after:-inset-[2px] after:rounded-[inherit] after:shadow-cartao after:transition-opacity",
-        marcado ? "selecionado after:opacity-0" : "border-marrom hover:bg-creme/60",
+        marcado
+          ? "selecionado"
+          : "border-linha shadow-suave hover:border-borda-controle/70 hover:bg-creme/60",
       )}
     >
       <input

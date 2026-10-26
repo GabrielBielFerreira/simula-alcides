@@ -126,7 +126,7 @@ function CartaoProposta({
 }) {
   return (
     <article
-      className={cn("cartao p-5 md:p-6", sugerida && "border-2 border-marrom shadow-cartao")}
+      className={cn("cartao p-5 md:p-6", sugerida && "border-laranja-acao/35 shadow-cartao")}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
         <span className="font-bold uppercase tracking-[0.14em] text-rosa">{proposta.eixo}</span>

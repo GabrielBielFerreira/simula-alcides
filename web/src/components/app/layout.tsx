@@ -47,7 +47,8 @@ function EstruturaApp() {
   const sair = useSair();
   return (
     <>
-      <div className="min-h-dvh bg-background">
+      {/* Topo e abas fixos no celular: âncoras e foco do Tab param fora deles. */}
+      <div className="min-h-dvh bg-background max-lg:[html:has(&)]:scroll-pt-20 max-lg:[html:has(&)]:scroll-pb-24">
         <aside className="fixed inset-y-0 left-0 hidden w-[264px] flex-col border-r border-linha bg-card p-5 [view-transition-name:nav-app-lateral] lg:flex">
           <Link to="/app">
             <img
@@ -96,7 +97,7 @@ function EstruturaApp() {
               {iniciaisDe(perfil?.nome ?? "")}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold leading-snug">{perfil?.nome}</p>
+              <p className="line-clamp-2 break-words font-semibold leading-snug">{perfil?.nome}</p>
               <p className="text-sm text-muted-foreground">
                 {ehCoordenacao(perfil) ? "Coordenação" : "Estudante"}
               </p>
@@ -182,7 +183,7 @@ function MenuPerfil() {
         <button
           type="button"
           aria-label={`Menu de ${nome}`}
-          className="grid size-10 place-items-center rounded-full bg-gradiente-botao text-sm font-bold text-white shadow-suave hover:brightness-110"
+          className="grid size-11 place-items-center rounded-full bg-gradiente-botao text-sm font-bold text-white shadow-suave transition-[filter] hover:brightness-95"
         >
           <span aria-hidden>{iniciaisDe(nome)}</span>
         </button>

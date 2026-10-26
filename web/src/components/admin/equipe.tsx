@@ -54,7 +54,7 @@ function Pessoa({ p, children }: { p: PessoaEquipe; children: ReactNode }) {
   return (
     <li className="flex flex-wrap items-center gap-3 p-4">
       <Avatar iniciais={iniciaisDe(p.nome)} tamanho="sm" />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-44">
         <p className="truncate font-semibold">{p.nome}</p>
         <p className="truncate text-sm text-muted-foreground">
           {NOME_PAPEL[p.papel]}
@@ -62,7 +62,7 @@ function Pessoa({ p, children }: { p: PessoaEquipe; children: ReactNode }) {
           {p.email ? ` · ${p.email}` : ""}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">{children}</div>
+      <div className="flex min-w-0 flex-wrap gap-2">{children}</div>
     </li>
   );
 }
@@ -87,8 +87,8 @@ function BotaoTirarAcesso({
     );
   return (
     <>
-      <Button variant="destructive" disabled={ocupado} onClick={aoConfirmar}>
-        Confirmar: tirar o acesso de {p.nome.split(/\s+/)[0]}
+      <Button variant="destructive" className="max-w-full" disabled={ocupado} onClick={aoConfirmar}>
+        <span className="truncate">Confirmar: tirar o acesso de {p.nome.split(/\s+/)[0]}</span>
       </Button>
       <Button variant="ghost" disabled={ocupado} onClick={() => setConfirmando(false)}>
         Cancelar
@@ -175,10 +175,13 @@ export function PainelEquipe() {
                     {p.poloId && p.papel !== "coord_polo" && (
                       <Button
                         variant="outline"
+                        className="max-w-full"
                         disabled={mudando === p.id}
                         onClick={() => void mudar(p, "coord_polo")}
                       >
-                        Coordenação do {p.poloNome?.replace(/^Compaz /, "") ?? "Compaz"}
+                        <span className="truncate">
+                          Coordenação do {p.poloNome?.replace(/^Compaz /, "") ?? "Compaz"}
+                        </span>
                       </Button>
                     )}
                   </Pessoa>

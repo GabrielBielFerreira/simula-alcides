@@ -55,7 +55,7 @@ export function PhoneMock({
     <div
       ref={celular}
       className={cn(
-        "demo-prova relative mx-auto w-[280px] rounded-[2.5rem] border-[3px] border-marrom bg-grafite p-2.5 shadow-[0_30px_60px_-20px_rgb(69_34_10/0.55)]",
+        "demo-prova relative mx-auto w-[280px] rounded-[2.5rem] border-[3px] border-marrom bg-grafite p-2.5 shadow-[0_30px_60px_-20px_rgb(28_23_39/0.45)]",
         className,
       )}
       aria-hidden
@@ -115,14 +115,14 @@ export function PhoneMock({
           </ul>
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-linha bg-card px-3 py-3">
-          <span className="grid size-9 place-items-center rounded-lg border-2 border-marrom text-marrom">
+          <span className="grid size-9 place-items-center rounded-full border border-borda-controle bg-card text-marrom">
             <ChevronLeft className="size-4" />
           </span>
-          <span className="flex items-center gap-1 rounded-lg bg-mostarda/30 px-2.5 py-2 text-[11px] font-bold text-marrom">
+          <span className="flex items-center gap-1 rounded-full bg-mostarda/30 px-2.5 py-2 text-[11px] font-bold text-marrom">
             <Flag className="size-3.5" />
             Revisar
           </span>
-          <span className="flex items-center gap-1 rounded-lg bg-laranja-acao px-3 py-2 text-[11px] font-bold text-primary-foreground">
+          <span className="flex items-center gap-1 rounded-full bg-laranja-acao bg-gradiente-botao px-3 py-2 text-[11px] font-bold text-primary-foreground">
             Próxima
             <ChevronRight className="size-3.5" />
           </span>
